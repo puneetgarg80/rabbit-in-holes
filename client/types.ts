@@ -21,7 +21,3 @@ export interface GameState {
   lastCheckedIndex: number | null;
   mousePath: number[]; // Generated at the end of the game for replay
 }
-
-export interface HintResponse {
-  text: string;
-}
