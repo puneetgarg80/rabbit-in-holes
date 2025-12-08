@@ -1,0 +1,5 @@
+{
+  "name": "Fox & Rabbit Logic Puzzle",
+  "description": "An interactive logic puzzle game where you play as the Fox trying to catch a Rabbit hiding in a row of holes. Use logic (or AI assistance) to devise the perfect strategy.",
+  "requestFramePermissions": []
+}
