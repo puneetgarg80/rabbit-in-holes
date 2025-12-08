@@ -22,7 +22,8 @@ export const Hole: React.FC<HoleProps> = ({
   disabled
 }) => {
   // Styles based on state
-  const baseClasses = "relative w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center border-4 transition-all duration-300 transform";
+  // Resized: w-10 h-10 (40px) default, sm:w-16 sm:h-16
+  const baseClasses = "relative w-10 h-10 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-4 transition-all duration-300 transform";
   
   let stateClasses = "bg-stone-800 border-stone-700 shadow-inner"; // Default dark hole
   let icon = null;
@@ -38,22 +39,22 @@ export const Hole: React.FC<HoleProps> = ({
      if (isChecked) {
        // Caught!
        stateClasses = "bg-green-500 border-green-600 shadow-lg scale-110";
-       icon = <Rabbit className="text-white w-8 h-8 sm:w-10 sm:h-10 animate-bounce" />;
+       icon = <Rabbit className="text-white w-6 h-6 sm:w-10 sm:h-10 animate-bounce" />;
      } else {
        // Revealed but not checked (Replay mode or Debug)
        stateClasses = "bg-stone-300 border-stone-400 opacity-90";
-       icon = <Rabbit className="text-stone-500 w-8 h-8 sm:w-10 sm:h-10 opacity-75" />;
+       icon = <Rabbit className="text-stone-500 w-6 h-6 sm:w-10 sm:h-10 opacity-75" />;
      }
   } else if (isSelected) {
      // Selected to be checked (Active or Replay History)
      stateClasses = "bg-stone-800 border-amber-500 scale-105 shadow-[0_0_15px_rgba(245,158,11,0.5)]";
      // Pulse only if actively playing, not during replay
      const pulseClass = gameStatus === GameStatus.PLAYING ? 'animate-pulse' : '';
-     icon = <Shovel className={`text-amber-500 w-6 h-6 ${pulseClass}`} />;
+     icon = <Shovel className={`text-amber-500 w-5 h-5 sm:w-8 sm:h-8 ${pulseClass}`} />;
   } else if (isChecked) {
      // Checked and empty
      stateClasses = "bg-stone-700 border-stone-600 opacity-80";
-     icon = <Footprints className="text-stone-500 w-6 h-6 rotate-12 opacity-50" />;
+     icon = <Footprints className="text-stone-500 w-5 h-5 sm:w-8 sm:h-8 rotate-12 opacity-50" />;
   }
 
   return (
@@ -63,7 +64,16 @@ export const Hole: React.FC<HoleProps> = ({
       className={`${baseClasses} ${stateClasses} ${disabled ? 'cursor-default' : 'cursor-pointer hover:scale-105 active:scale-95'}`}
       aria-label={`Hole ${index + 1}`}
     >
-      <span className="absolute -top-6 text-stone-500 text-xs font-bold font-mono">#{index + 1}</span>
+      {/* Visual Fox Indicator when inspecting (Active Play only) */}
+      {isSelected && gameStatus === GameStatus.PLAYING && (
+        <div className="absolute -top-10 inset-x-0 flex justify-center text-3xl animate-bounce z-20 pointer-events-none drop-shadow-sm filter">
+          🦊
+        </div>
+      )}
+
+      {/* Hole Number Label - Moved to bottom to clear space for Fox */}
+      <span className="absolute -bottom-6 text-stone-500 text-xs font-bold font-mono">#{index + 1}</span>
+      
       {icon}
       
       {/* Dark overlay for depth if just a normal hole */}

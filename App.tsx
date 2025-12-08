@@ -6,18 +6,18 @@ import { GameState, GameStatus, HistoryEntry } from './types';
 import { RefreshCw, Trophy, Info, Minus, Plus, X, Play, SkipBack, SkipForward, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const App: React.FC = () => {
-  // --- State ---
   const initialHoleCount = 5;
-  const initialRabbitPos = Math.floor(Math.random() * initialHoleCount);
 
+  // Initial State: Rabbit could be anywhere
   const [gameState, setGameState] = useState<GameState>({
     holeCount: initialHoleCount,
-    rabbitIndex: initialRabbitPos,
+    possibleHoles: Array.from({ length: initialHoleCount }, (_, i) => i),
+    candidatesHistory: [Array.from({ length: initialHoleCount }, (_, i) => i)], // Day 1 candidates
     day: 1,
     history: [],
     status: GameStatus.PLAYING,
     lastCheckedIndex: null,
-    rabbitPath: [initialRabbitPos],
+    rabbitPath: [],
   });
 
   const [selectedHole, setSelectedHole] = useState<number | null>(null);
@@ -25,76 +25,137 @@ const App: React.FC = () => {
   const [showRules, setShowRules] = useState(true);
   const [replayIndex, setReplayIndex] = useState<number | null>(null);
 
-  // --- Game Logic ---
+  // --- Logic Helpers ---
+
+  // Backtracking algorithm to generate a valid rabbit path after winning
+  const backtrackPath = (candidatesHistory: number[][], history: HistoryEntry[], winningHole: number): number[] => {
+    const path: number[] = [winningHole];
+    let currentPos = winningHole;
+
+    // Iterate backwards from the day BEFORE the win, down to Day 1
+    // history array length excludes the winning move when this is called inside handleCheckHole if we aren't careful,
+    // but here we will pass the full history including the win, or manage indices carefully.
+    // Let's assume 'history' passed here EXCLUDES the winning entry (Day N).
+    // The loop goes from Day N-1 down to Day 1.
+    // candidatesHistory has entries for Day 1 to Day N.
+
+    for (let i = candidatesHistory.length - 2; i >= 0; i--) {
+      const candidatesForDay = candidatesHistory[i];
+      const checkedHoleThatDay = history[i].checkedHoleIndex;
+
+      // Find a hole in candidatesForDay that is:
+      // 1. NOT the hole we checked that day (rabbit wasn't there)
+      // 2. Adjacent to currentPos (where rabbit is the next day)
+      
+      // Note: The logic ensures at least one such parent exists if the game logic is sound.
+      // If multiple exist, we pick the first one (randomly effectively) or could randomize.
+      
+      const validParents = candidatesForDay.filter(p => 
+        p !== checkedHoleThatDay && Math.abs(p - currentPos) === 1
+      );
+
+      if (validParents.length > 0) {
+        // Pick a random valid parent for variety in replay
+        const parent = validParents[Math.floor(Math.random() * validParents.length)];
+        path.unshift(parent);
+        currentPos = parent;
+      } else {
+        console.error("Critical Logic Error: No valid parent found during backtrack", { day: i + 1, currentPos, candidatesForDay, checkedHoleThatDay });
+        path.unshift(candidatesForDay[0]); // Fallback to prevent crash
+      }
+    }
+    return path;
+  };
+
+  // --- Game Loop ---
 
   const handleCheckHole = useCallback(async () => {
     if (selectedHole === null || gameState.status !== GameStatus.PLAYING || isProcessing) return;
 
     setIsProcessing(true);
-
-    // 1. Check if rabbit is found
-    const found = gameState.rabbitIndex === selectedHole;
     
-    // Create history entry
-    const newEntry: HistoryEntry = {
-      day: gameState.day,
-      checkedHoleIndex: selectedHole,
-      found,
-    };
+    // Simulate thinking time
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    if (found) {
-      setGameState(prev => ({
-        ...prev,
-        history: [...prev.history, newEntry],
-        status: GameStatus.WON,
-        lastCheckedIndex: selectedHole
-      }));
-      setIsProcessing(false);
-      return;
+    const { possibleHoles, day, history, candidatesHistory, holeCount } = gameState;
+    
+    // 1. Check Step
+    // To win, the rabbit must be FORCED to be in the selected hole.
+    // This happens if the selected hole is the ONLY possibility left.
+    // (If there are multiple possibilities and we pick one, we just eliminated one possibility, we didn't catch it for sure).
+    
+    const isWin = possibleHoles.length === 1 && possibleHoles[0] === selectedHole;
+    
+    if (isWin) {
+       // VICTORY
+       const path = backtrackPath(candidatesHistory, history, selectedHole);
+       
+       const winEntry: HistoryEntry = {
+         day,
+         checkedHoleIndex: selectedHole,
+         found: true,
+         remainingPossibilitiesCount: 0
+       };
+
+       setGameState(prev => ({
+         ...prev,
+         status: GameStatus.WON,
+         history: [...prev.history, winEntry],
+         lastCheckedIndex: selectedHole,
+         rabbitPath: path
+       }));
+       
+       setIsProcessing(false);
+       setSelectedHole(null);
+       return;
     }
 
-    // 2. Rabbit Moves
-    // Delay slightly for dramatic effect
-    await new Promise(resolve => setTimeout(resolve, 600));
-
-    setGameState(prev => {
-      const currentRabbitPos = prev.rabbitIndex;
-      let nextRabbitPos;
-
-      // Logic: Move adjacent
-      if (currentRabbitPos === 0) {
-        nextRabbitPos = 1;
-      } else if (currentRabbitPos === prev.holeCount - 1) {
-        nextRabbitPos = prev.holeCount - 2;
-      } else {
-        // Random left or right
-        nextRabbitPos = Math.random() > 0.5 ? currentRabbitPos + 1 : currentRabbitPos - 1;
-      }
-
-      return {
-        ...prev,
-        rabbitIndex: nextRabbitPos,
-        day: prev.day + 1,
-        history: [...prev.history, newEntry],
-        lastCheckedIndex: selectedHole,
-        rabbitPath: [...prev.rabbitPath, nextRabbitPos]
-      };
+    // NOT VICTORY
+    // 1. Elimination: If selected hole was a possibility, remove it.
+    // (If it wasn't a possibility, we just learned nothing new about location, but time passes).
+    const afterCheckCandidates = possibleHoles.filter(h => h !== selectedHole);
+    
+    // 2. Movement (Next Day): Expand remaining candidates to adjacent holes
+    const nextDayCandidatesSet = new Set<number>();
+    afterCheckCandidates.forEach(pos => {
+      if (pos - 1 >= 0) nextDayCandidatesSet.add(pos - 1);
+      if (pos + 1 < holeCount) nextDayCandidatesSet.add(pos + 1);
     });
+    const nextPossibleHoles = Array.from(nextDayCandidatesSet).sort((a, b) => a - b);
 
-    setSelectedHole(null);
+    const newEntry: HistoryEntry = {
+      day,
+      checkedHoleIndex: selectedHole,
+      found: false,
+      remainingPossibilitiesCount: afterCheckCandidates.length // Count *after* check, before move
+    };
+
+    setGameState(prev => ({
+      ...prev,
+      day: prev.day + 1,
+      history: [...prev.history, newEntry],
+      possibleHoles: nextPossibleHoles,
+      candidatesHistory: [...prev.candidatesHistory, nextPossibleHoles],
+      lastCheckedIndex: selectedHole
+    }));
+
     setIsProcessing(false);
-  }, [selectedHole, gameState.rabbitIndex, gameState.status, gameState.day, isProcessing]);
+    setSelectedHole(null);
+
+  }, [selectedHole, gameState, isProcessing]);
+
 
   const resetGame = (newHoleCount: number = gameState.holeCount) => {
-    const startPos = Math.floor(Math.random() * newHoleCount);
+    const allHoles = Array.from({ length: newHoleCount }, (_, i) => i);
     setGameState({
       holeCount: newHoleCount,
-      rabbitIndex: startPos,
+      possibleHoles: allHoles,
+      candidatesHistory: [allHoles],
       day: 1,
       history: [],
       status: GameStatus.PLAYING,
       lastCheckedIndex: null,
-      rabbitPath: [startPos],
+      rabbitPath: [],
     });
     setSelectedHole(null);
     setReplayIndex(null);
@@ -114,21 +175,18 @@ const App: React.FC = () => {
   const endReplay = () => setReplayIndex(gameState.history.length - 1);
   const closeReplay = () => setReplayIndex(null);
 
-  // Determine what to display
   const isReplayMode = replayIndex !== null && gameState.status === GameStatus.WON;
-  
-  // If playing, we don't show rabbit (unless debug/won). 
-  // If won and NOT replaying, we show final state (rabbit caught).
-  // If replaying, we show the state at replayIndex.
-  
+
+  // --- Derived Display Values ---
   const displayDayIndex = isReplayMode 
     ? replayIndex 
     : (gameState.status === GameStatus.WON ? gameState.history.length - 1 : gameState.day - 1);
 
-  // Safe checks for arrays
+  // In playing mode, we don't show the rabbit.
+  // In replay mode, we show the rabbit from the backtracked path.
   const displayRabbitPos = isReplayMode 
-    ? gameState.rabbitPath[displayDayIndex]
-    : (gameState.status === GameStatus.WON ? gameState.rabbitIndex : -1); // -1 means hidden
+    ? gameState.rabbitPath[displayDayIndex] 
+    : (gameState.status === GameStatus.WON ? gameState.lastCheckedIndex! : -1);
 
   const displayCheckedPos = isReplayMode
     ? gameState.history[displayDayIndex]?.checkedHoleIndex
@@ -138,7 +196,9 @@ const App: React.FC = () => {
     ? gameState.history[displayDayIndex]?.day 
     : gameState.day;
 
-  // --- Render ---
+  const currentPossibilities = isReplayMode 
+    ? -1 // Don't show possibilities during replay, show path
+    : gameState.possibleHoles.length;
 
   return (
     <div className="min-h-screen bg-stone-100 text-stone-800 flex flex-col items-center">
@@ -152,7 +212,7 @@ const App: React.FC = () => {
               {isReplayMode ? (
                 <span className="text-amber-600 font-bold">Replay: Day {displayDayNumber}</span>
               ) : (
-                <>Day {gameState.day} • {gameState.status === GameStatus.WON ? 'Success' : 'Hunting'}</>
+                <>Day {gameState.day} • {currentPossibilities} Suspects Left</>
               )}
             </p>
           </div>
@@ -176,18 +236,23 @@ const App: React.FC = () => {
                <h3 className="text-lg font-bold text-stone-800">How to Play</h3>
                <button onClick={() => setShowRules(false)} className="text-stone-400 hover:text-stone-600"><X className="w-5 h-5"/></button>
              </div>
-             <ul className="text-sm text-stone-600 space-y-2 list-disc pl-5">
-               <li>There are {gameState.holeCount} holes. A rabbit hides in one.</li>
-               <li>Each morning, you inspect <strong>one</strong> hole.</li>
-               <li>If the rabbit is there, you win!</li>
-               <li>If not, the rabbit moves to an <strong>adjacent</strong> hole (left or right) for the next day.</li>
-               <li>Use logic to trap the rabbit!</li>
-             </ul>
+             <div className="text-sm text-stone-600 space-y-3">
+               <p>The rabbit is in <strong>superposition</strong>! It could be in ANY valid hole.</p>
+               <ul className="list-disc pl-5 space-y-1">
+                 <li>Every day, inspect one hole.</li>
+                 <li>If the rabbit <em>could</em> be there, checking it rules out that possibility for today.</li>
+                 <li>The remaining "possible rabbits" move to adjacent holes (left or right) for the next day.</li>
+                 <li><strong>Win Condition:</strong> Reduce the possibilities to just <strong>one</strong> hole and catch it!</li>
+               </ul>
+               <p className="bg-stone-100 p-2 rounded text-xs italic">
+                 Note: You only win when you are 100% certain. If you check a hole and the rabbit <em>could</em> have been elsewhere, the game continues.
+               </p>
+             </div>
              <button 
                onClick={() => setShowRules(false)}
                className="w-full py-3 bg-stone-800 text-white rounded-xl font-medium hover:bg-stone-700"
              >
-               Got it
+               Start Hunting
              </button>
           </div>
         </div>
@@ -232,21 +297,36 @@ const App: React.FC = () => {
         </div>
 
         {/* The Holes (Board) */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-stone-200">
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-stone-200 relative overflow-hidden">
+           {/* Progress Hint Background */}
+           {gameState.status === GameStatus.PLAYING && (
+              <div className="absolute top-0 left-0 h-1 bg-gradient-to-r from-green-400 to-green-500 transition-all duration-500"
+                   style={{ width: `${Math.max(5, ((gameState.holeCount - currentPossibilities) / gameState.holeCount) * 100)}%` }} 
+              />
+           )}
+
            {/* Scrollable Container for Holes */}
-           <div className="overflow-x-auto pb-4 -mx-6 px-6 scrollbar-hide">
-             <div className="inline-flex items-center justify-center gap-4 relative min-w-full py-2">
-               {/* Connector Line (Visual only) */}
-               <div className="absolute top-1/2 left-2 right-2 h-1 bg-stone-200 -z-10 -translate-y-1/2 rounded-full" />
+           <div className="overflow-x-auto -mx-6 px-6 scrollbar-hide">
+             <div className="inline-flex items-center justify-center gap-2 relative min-w-full pt-12 pb-6">
+               {/* Connector Line */}
+               <div className="absolute top-1/2 left-2 right-2 h-1 bg-stone-200 -z-10 -translate-y-1/2 rounded-full mt-3" />
                
                {Array.from({ length: gameState.holeCount }).map((_, i) => {
-                 // Determine props for this hole based on display mode
+                 // Logic for visual state
                  const isChecked = displayCheckedPos === i;
-                 const isRabbit = displayRabbitPos === i; // Only true in Replay or Won state
+                 // In Replay: Show rabbit if it's in the path at this index.
+                 // In Play: Rabbit is invisible (quantum), but we show it if we WON.
+                 const isRabbit = isReplayMode 
+                    ? displayRabbitPos === i 
+                    : (gameState.status === GameStatus.WON && gameState.lastCheckedIndex === i);
+                 
                  const isSelected = (!isReplayMode && selectedHole === i) || (isReplayMode && displayCheckedPos === i);
                  
+                 // Debug visualization for dev (optional)
+                 // const isPossible = gameState.possibleHoles.includes(i); 
+
                  return (
-                   <div key={i} className="flex-shrink-0">
+                   <div key={i} className="flex-shrink-0 relative">
                      <Hole 
                        index={i}
                        isSelected={isSelected}
@@ -267,19 +347,21 @@ const App: React.FC = () => {
              {gameState.status === GameStatus.WON ? (
                 isReplayMode ? (
                   <span className="text-amber-600 font-medium animate-in fade-in">
-                    Day {displayDayNumber}: Rabbit was at Hole {displayRabbitPos + 1}
+                    Replay Day {displayDayNumber}: Rabbit revealed at Hole {displayRabbitPos + 1}
                   </span>
                 ) : (
                   <span className="text-green-600 font-bold flex items-center justify-center gap-2 animate-bounce">
-                    <Trophy className="w-5 h-5" /> Gotcha! The rabbit was caught!
+                    <Trophy className="w-5 h-5" /> Gotcha! The rabbit is cornered!
                   </span>
                 )
              ) : selectedHole !== null ? (
                <span className="text-stone-500 font-medium animate-pulse">
-                 Ready to check Hole {selectedHole + 1}?
+                 Check Hole {selectedHole + 1}?
                </span>
              ) : (
-               <span className="text-stone-400 text-sm">Select a hole to inspect</span>
+               <span className="text-stone-400 text-sm">
+                 {currentPossibilities} possible locations. Who to eliminate?
+               </span>
              )}
            </div>
         </div>
@@ -295,7 +377,7 @@ const App: React.FC = () => {
                 : 'bg-stone-200 text-stone-400 cursor-not-allowed'}
             `}
           >
-            {isProcessing ? 'Checking...' : 'Check Hole'}
+            {isProcessing ? 'Checking...' : 'Inspect Hole'}
           </button>
         ) : (
           <div className="flex flex-col gap-3">
@@ -307,7 +389,7 @@ const App: React.FC = () => {
                       onClick={startReplay}
                       className="w-full flex items-center justify-center gap-2 py-2 font-medium hover:bg-stone-700 rounded-lg transition-colors"
                     >
-                      <Play className="w-4 h-4" /> Watch Replay
+                      <Play className="w-4 h-4" /> Watch Rabbit's Path
                     </button>
                  ) : (
                     <div className="flex w-full items-center justify-between px-2">
@@ -317,7 +399,7 @@ const App: React.FC = () => {
                        </div>
                        
                        <span className="text-sm font-mono font-bold text-stone-300">
-                         Day {displayDayNumber} / {gameState.history.length}
+                         Day {displayDayNumber}
                        </span>
                        
                        <div className="flex gap-1">

@@ -1,27 +1,27 @@
 export enum GameStatus {
   PLAYING = 'PLAYING',
   WON = 'WON',
-  LOST = 'LOST', // Theoretically hard to reach in this specific puzzle logic unless defined by turn limit
+  LOST = 'LOST',
 }
 
 export interface HistoryEntry {
   day: number;
   checkedHoleIndex: number; // 0-based
   found: boolean;
-  rabbitMoveDirection?: 'left' | 'right'; // Only revealed in debug or maybe end game? (Usually hidden)
+  remainingPossibilitiesCount: number; // How many holes could the rabbit be in after this check?
 }
 
 export interface GameState {
   holeCount: number;
-  rabbitIndex: number; // 0-based index of where the rabbit is
+  possibleHoles: number[]; // The set of all holes the rabbit *could* be in currently
+  candidatesHistory: number[][]; // Snapshots of possibleHoles for each day (for backtracking replay)
   day: number;
   history: HistoryEntry[];
   status: GameStatus;
   lastCheckedIndex: number | null;
-  rabbitPath: number[]; // Stores the position of the rabbit for each day
+  rabbitPath: number[]; // Generated at the end of the game for replay
 }
 
 export interface HintResponse {
   text: string;
-  suggestedHole?: number;
 }

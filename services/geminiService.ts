@@ -8,43 +8,42 @@ export const getGameHint = async (
   holeCount: number
 ): Promise<string> => {
   const prompt = `
-    You are a logic puzzle expert helping a player solve the "Fox in a Hole" (or Rabbit in a Hole) puzzle.
+    You are a logic puzzle expert helping a player solve the "Quantum Fox in a Hole" puzzle.
     
-    **Rules:**
-    1. There are ${holeCount} holes arranged in a line (indexed 1 to ${holeCount}).
-    2. Every morning, the player (Fox) inspects one hole.
-    3. If the rabbit is there, the player wins.
-    4. If not, the rabbit *must* move to an adjacent hole (left or right) for the next day.
-    5. The rabbit cannot stay in the same hole.
+    **Game Mechanics (Superposition):**
+    1. There are ${holeCount} holes.
+    2. The rabbit is NOT in a single hole. It exists in a "superposition" of ALL possible holes consistent with the history of checks.
+    3. Initially (Day 1), the rabbit could be in ANY hole.
+    4. Each day, the player checks one hole. 
+       - If it's the ONLY possible location left, the player WINS.
+       - Otherwise, that hole is removed from the possibilities for the current day.
+    5. AFTER the check, all remaining possible rabbits move to adjacent holes (left or right).
+    6. The goal is to reduce the set of "Possible Holes" until size 1.
     
-    **Current Game State:**
-    The player is on Day ${history.length + 1}.
+    **Current Status:**
+    - Day: ${history.length + 1}
+    - History: ${history.length === 0 ? "None" : history.map(h => `Day ${h.day}: Checked ${h.checkedHoleIndex + 1} (${h.remainingPossibilitiesCount} possibilities remained)`).join(', ')}
     
-    **History of Checks:**
-    ${history.length === 0 ? "No checks made yet." : history.map(h => `- Day ${h.day}: Checked Hole ${h.checkedHoleIndex + 1} (Empty)`).join('\n')}
-    
-    **Your Task:**
-    Analyze the history and explain the logic to the user.
-    Suggest which hole to check next to follow the optimal deterministic strategy (often called the checking sequence) to guarantee catching the rabbit.
-    If you are unsure, provide a probabilistic suggestion.
-    Keep the explanation concise, encouraging, and easy to understand for a mobile user.
-    Do not use markdown formatting like bolding too aggressively, keep it clean.
+    **Task:**
+    Analyze the current day.
+    Suggest a move that efficiently reduces the number of possible rabbit locations.
+    Explain WHY based on the "set reduction" logic.
+    For 5 holes, the optimal sequence is often 2, 3, 4, 2, 3, 4.
+    Keep it short, friendly, and helpful.
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash', // Fast and smart enough for this logic
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
-        systemInstruction: "You are a helpful game assistant. Keep hints short (under 100 words).",
-        // Thinking config can be used for more complex analysis, but flash is good here.
-        // We'll trust flash's logic capabilities for this well-known puzzle.
+        systemInstruction: "You are a helpful game assistant. Keep hints short (under 100 words). Focus on the 'possible locations' logic.",
       }
     });
 
-    return response.text || "The Wise Owl is silent right now. Try relying on your instincts!";
+    return response.text || "The Wise Owl is silent. Trust your logic!";
   } catch (error) {
     console.error("Gemini API Error:", error);
-    return "I couldn't reach the Wise Owl (Network Error). Check your connection or API key.";
+    return "I couldn't reach the Wise Owl (Network Error).";
   }
 };
