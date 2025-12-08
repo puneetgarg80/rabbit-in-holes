@@ -64,14 +64,7 @@ export const Hole: React.FC<HoleProps> = ({
       className={`${baseClasses} ${stateClasses} ${disabled ? 'cursor-default' : 'cursor-pointer hover:scale-105 active:scale-95'}`}
       aria-label={`Hole ${index + 1}`}
     >
-      {/* Visual Fox Indicator when inspecting (Active Play only) */}
-      {isSelected && gameStatus === GameStatus.PLAYING && (
-        <div className="absolute -top-10 inset-x-0 flex justify-center text-3xl animate-bounce z-20 pointer-events-none drop-shadow-sm filter">
-          🦊
-        </div>
-      )}
-
-      {/* Hole Number Label - Moved to bottom to clear space for Fox */}
+      {/* Hole Number Label - At bottom */}
       <span className="absolute -bottom-6 text-stone-500 text-xs font-bold font-mono">#{index + 1}</span>
       
       {icon}
