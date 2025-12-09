@@ -38,23 +38,23 @@ export const Hole: React.FC<HoleProps> = ({
   if (gameStatus === GameStatus.WON && isRabbit) {
     if (isChecked) {
       // Caught!
-      stateClasses = "bg-green-500 border-green-600 shadow-lg scale-110";
+      stateClasses = "bg-emerald-500 border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.5)] scale-110 z-10";
       icon = <Rabbit className="text-white w-6 h-6 sm:w-10 sm:h-10" />;
     } else {
       // Revealed but not checked (Replay mode or Debug)
-      stateClasses = "bg-stone-300 border-stone-400 opacity-90";
+      stateClasses = "bg-stone-700 border-stone-600 opacity-90";
       icon = <Rabbit className="text-stone-500 w-6 h-6 sm:w-10 sm:h-10 opacity-75" />;
     }
   } else if (isSelected) {
     // Selected to be checked (Active or Replay History)
-    stateClasses = "bg-stone-800 border-amber-500 scale-105 shadow-[0_0_15px_rgba(245,158,11,0.5)]";
+    stateClasses = "bg-stone-800 border-amber-500 scale-105 shadow-[0_0_15px_rgba(245,158,11,0.5)] z-10";
     // Pulse only if actively playing, not during replay
     const pulseClass = gameStatus === GameStatus.PLAYING ? 'animate-pulse' : '';
     icon = <PawPrint className={`text-amber-500 w-5 h-5 sm:w-8 sm:h-8 ${pulseClass}`} />;
   } else if (isChecked) {
     // Checked and empty
-    stateClasses = "bg-stone-700 border-stone-600 opacity-80";
-    icon = <Footprints className="text-stone-500 w-5 h-5 sm:w-8 sm:h-8 rotate-12 opacity-50" />;
+    stateClasses = "bg-stone-900 border-stone-800 opacity-60"; // Darker, cleaner empty state
+    icon = <Footprints className="text-stone-600 w-5 h-5 sm:w-8 sm:h-8 rotate-12 opacity-50" />;
   }
 
   return (
