@@ -140,8 +140,10 @@ const App: React.FC = () => {
   const displayCheckedPos = isReplayMode ? gameState.history[displayDayIndex]?.checkedHoleIndex : gameState.lastCheckedIndex;
   const displayDayNumber = isReplayMode ? gameState.history[displayDayIndex]?.day : gameState.day;
   const currentPossibilities = isReplayMode ? -1 : gameState.possibleHoles.length;
-  const foxPosition = isReplayMode ? displayCheckedPos : selectedHole;
-  const showFox = (gameState.status === GameStatus.PLAYING && selectedHole !== null) || (isReplayMode && foxPosition !== null);
+  const foxPosition = isReplayMode
+    ? displayCheckedPos
+    : (gameState.status === GameStatus.WON ? gameState.lastCheckedIndex : selectedHole);
+  const showFox = (foxPosition !== null);
 
   return (
     <div className="h-[100dvh] bg-stone-50 text-stone-800 flex flex-col overflow-hidden relative font-sans">
@@ -183,7 +185,7 @@ const App: React.FC = () => {
                 <div className="absolute top-1/2 left-2 right-2 h-1 bg-stone-300 -z-10 -translate-y-1/2 rounded-full" />
 
                 {/* Sliding Fox Cursor */}
-                {showFox && foxPosition !== null && (
+                {showFox && (
                   <div className="absolute -top-12 left-0 z-20 w-10 h-10 sm:w-16 sm:h-16 flex justify-center transition-transform duration-300 ease-out pointer-events-none" style={{ transform: `translateX(calc(${foxPosition} * (100% + ${window.innerWidth >= 640 ? '1rem' : '0.5rem'})))` }}>
                     <div className="text-4xl animate-bounce drop-shadow-md filter">🦊</div>
                   </div>
