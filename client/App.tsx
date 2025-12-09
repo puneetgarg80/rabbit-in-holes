@@ -3,8 +3,7 @@ import { Hole } from './components/Hole';
 import { Log } from './components/Log';
 
 import { GameState, GameStatus, HistoryEntry } from './types';
-import { RefreshCw, Trophy, Info, Minus, Plus, X, Play, SkipBack, SkipForward, ChevronLeft, ChevronRight, Pause, ClipboardList, Smartphone } from 'lucide-react';
-
+import { RefreshCw, Trophy, Info, Minus, Plus, X, Play, SkipBack, SkipForward, ChevronLeft, ChevronRight, Pause, ClipboardList, Smartphone, Rabbit, MapPin, Repeat } from 'lucide-react';
 const App: React.FC = () => {
   const initialHoleCount = 5;
 
@@ -386,28 +385,60 @@ const App: React.FC = () => {
       {/* Rules Modal Overlay */}
       {
         showRules && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl p-6 max-w-xs w-full shadow-2xl space-y-5 border border-white/50 landscape:max-w-md landscape:flex landscape:flex-row landscape:gap-6 landscape:p-8 landscape:items-center">
-              <div className="flex-1 space-y-5">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-xl font-bold text-stone-800 tracking-tight">Fox & Rabbit Rules</h3>
-                  <button onClick={() => setShowRules(false)} className="text-stone-400 hover:text-stone-600 p-1 landscape:hidden"><X className="w-6 h-6" /></button>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-orange-950/40 backdrop-blur-sm transition-opacity duration-300">
+            <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+              <div className="bg-orange-600 p-6 text-white relative">
+                <button
+                  onClick={() => setShowRules(false)}
+                  className="absolute top-4 right-4 p-1 hover:bg-orange-500 rounded-full transition-colors"
+                >
+                  <X size={24} />
+                </button>
+                <div className="flex items-center gap-3 mb-2">
+                  <Rabbit size={32} className="text-orange-200" />
+                  <h2 className="text-3xl bangers tracking-wide">The Great Chase</h2>
                 </div>
-                <div className="text-sm text-stone-600 space-y-3 leading-relaxed">
-                  <p>The rabbit is in a <strong>superposition</strong>! It exists in ALL possible holes at once.</p>
-                  <ul className="list-disc pl-4 space-y-2 marker:text-amber-500">
-                    <li>Check a hole to <strong>collapse</strong> the possibilities.</li>
-                    <li>If the rabbit <em>could</em> be there, checking it removes that possibility.</li>
-                    <li>After a check, all potential rabbits move 1 step (left or right).</li>
-                  </ul>
-                  <div className="bg-stone-100 p-4 rounded-2xl text-xs font-medium text-stone-500 border border-stone-200/60">
-                    Win by eliminating all possibilities except <strong>ONE</strong>, then catch it!
+                <p className="text-orange-100 font-medium">Can you outsmart the cheeky rabbit?</p>
+              </div>
+
+              <div className="p-6 space-y-6">
+                <div className="space-y-4">
+                  <div className="flex gap-4">
+                    <div className="flex-shrink-0 w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center text-orange-600">
+                      <MapPin size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-orange-900">The Hideout</h3>
+                      <p className="text-sm text-gray-600">The rabbit is hiding in one of the holes below. Pick one to inspect each morning.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="flex-shrink-0 w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center text-orange-600">
+                      <Repeat size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-orange-900">The Rabbit's Move</h3>
+                      <p className="text-sm text-gray-600">If you miss, the rabbit hops to an <span className="font-bold underline">adjacent</span> hole overnight. It never stays still!</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
+                    <p className="text-xs text-orange-800 leading-relaxed italic">
+                      "Finding me takes logic, Fox! Hint: The holes follow a numerical sequence. If I'm in hole 3 today, I'll be in 2 or 4 tomorrow."
+                    </p>
                   </div>
                 </div>
-              </div>
-              <div className="landscape:w-40 landscape:flex landscape:flex-col landscape:gap-2">
-                <button onClick={() => setShowRules(false)} className="w-full py-4 bg-stone-900 text-white rounded-2xl font-bold text-lg hover:bg-black transition-transform active:scale-[0.98] shadow-xl shadow-stone-900/20">Let's Hunt</button>
-                <button onClick={() => setShowRules(false)} className="hidden landscape:block w-full py-2 text-stone-400 hover:text-stone-600">Close</button>
+
+                <div className="landscape:w-40 landscape:flex landscape:flex-col landscape:gap-2">
+                  <button
+                    onClick={() => setShowRules(false)}
+                    className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-orange-600/20 flex items-center justify-center gap-2 transition-transform active:scale-95"
+                  >
+                    <Play size={20} fill="currentColor" />
+                    Start Hunting
+                  </button>
+                </div>
               </div>
             </div>
           </div>
