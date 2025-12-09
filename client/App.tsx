@@ -54,28 +54,35 @@ const App: React.FC = () => {
   };
 
   // --- Game Loop ---
-  const handleCheckHole = useCallback(async () => {
-    if (selectedHole === null || gameState.status !== GameStatus.PLAYING || isProcessing) return;
+  /* Updated to support direct index passing for single-tap */
+  const handleCheckHole = useCallback(async (indexOverride?: number) => {
+    // Use override if provided, otherwise fallback to selectedHole (though single-tap should always provide it)
+    const targetHole = indexOverride !== undefined ? indexOverride : selectedHole;
+
+    if (targetHole === null || gameState.status !== GameStatus.PLAYING || isProcessing) return;
+
+    // Set selected hole immediately for UI feedback (Fox movement)
+    setSelectedHole(targetHole);
 
     setIsProcessing(true);
     await new Promise(resolve => setTimeout(resolve, 500));
 
     const { possibleHoles, day, history, candidatesHistory, holeCount } = gameState;
-    const isWin = possibleHoles.length === 1 && possibleHoles[0] === selectedHole;
+    const isWin = possibleHoles.length === 1 && possibleHoles[0] === targetHole;
 
     if (isWin) {
-      const path = backtrackPath(candidatesHistory, history, selectedHole);
-      const winEntry: HistoryEntry = { day, checkedHoleIndex: selectedHole, found: true, remainingPossibilitiesCount: 0 };
+      const path = backtrackPath(candidatesHistory, history, targetHole);
+      const winEntry: HistoryEntry = { day, checkedHoleIndex: targetHole, found: true, remainingPossibilitiesCount: 0 };
 
       setGameState(prev => ({
-        ...prev, status: GameStatus.WON, history: [...prev.history, winEntry], lastCheckedIndex: selectedHole, rabbitPath: path
+        ...prev, status: GameStatus.WON, history: [...prev.history, winEntry], lastCheckedIndex: targetHole, rabbitPath: path
       }));
       setIsProcessing(false);
       setSelectedHole(null);
       return;
     }
 
-    const afterCheckCandidates = possibleHoles.filter(h => h !== selectedHole);
+    const afterCheckCandidates = possibleHoles.filter(h => h !== targetHole);
     const nextDayCandidatesSet = new Set<number>();
     afterCheckCandidates.forEach(pos => {
       if (pos - 1 >= 0) nextDayCandidatesSet.add(pos - 1);
@@ -83,15 +90,20 @@ const App: React.FC = () => {
     });
     const nextPossibleHoles = Array.from(nextDayCandidatesSet).sort((a, b) => a - b);
 
-    const newEntry: HistoryEntry = { day, checkedHoleIndex: selectedHole, found: false, remainingPossibilitiesCount: afterCheckCandidates.length };
+    const newEntry: HistoryEntry = { day, checkedHoleIndex: targetHole, found: false, remainingPossibilitiesCount: afterCheckCandidates.length };
 
     setGameState(prev => ({
-      ...prev, day: prev.day + 1, history: [...prev.history, newEntry], possibleHoles: nextPossibleHoles, candidatesHistory: [...prev.candidatesHistory, nextPossibleHoles], lastCheckedIndex: selectedHole
+      ...prev, day: prev.day + 1, history: [...prev.history, newEntry], possibleHoles: nextPossibleHoles, candidatesHistory: [...prev.candidatesHistory, nextPossibleHoles], lastCheckedIndex: targetHole
     }));
 
     setIsProcessing(false);
     setSelectedHole(null);
   }, [selectedHole, gameState, isProcessing]);
+
+  const handleHoleClick = (index: number) => {
+    // Single tap -> Inspect immediately
+    handleCheckHole(index);
+  };
 
 
   const resetGame = (newHoleCount: number = gameState.holeCount) => {
@@ -197,7 +209,7 @@ const App: React.FC = () => {
                   const isSelected = (!isReplayMode && selectedHole === i) || (isReplayMode && displayCheckedPos === i);
                   return (
                     <div key={i} className="flex-shrink-0 relative">
-                      <Hole index={i} isSelected={isSelected} isChecked={isChecked} isRabbit={isRabbit} gameStatus={gameState.status} onSelect={setSelectedHole} disabled={gameState.status !== GameStatus.PLAYING || isProcessing || isReplayMode} />
+                      <Hole index={i} isSelected={isSelected} isChecked={isChecked} isRabbit={isRabbit} gameStatus={gameState.status} onSelect={handleHoleClick} disabled={gameState.status !== GameStatus.PLAYING || isProcessing || isReplayMode} />
                     </div>
                   );
                 })}
@@ -219,7 +231,7 @@ const App: React.FC = () => {
               )
             ) : selectedHole !== null ? (
               <span className="text-stone-700 font-bold animate-pulse bg-white/60 backdrop-blur px-5 py-1.5 rounded-full shadow-sm border border-stone-200/50">
-                Inspect Hole #{selectedHole + 1}?
+                Tap again to inspect Hole #{selectedHole + 1}
               </span>
             ) : (
               <span className="text-stone-500 text-sm font-medium bg-stone-200/50 px-4 py-1.5 rounded-full">
@@ -232,9 +244,7 @@ const App: React.FC = () => {
         {/* Bottom Action Area (Fixed within Main) */}
         <div className="flex-none p-4 pt-0">
           {gameState.status === GameStatus.PLAYING ? (
-            <button onClick={handleCheckHole} disabled={selectedHole === null || isProcessing} className={`w-full py-4 rounded-2xl font-bold text-lg shadow-xl transition-all transform active:scale-[0.98] ${selectedHole !== null && !isProcessing ? 'bg-stone-900 text-white shadow-stone-900/20 hover:bg-stone-800' : 'bg-stone-200 text-stone-400 cursor-not-allowed'}`}>
-              {isProcessing ? 'Checking...' : 'Inspect Hole'}
-            </button>
+            <div className="h-4" />
           ) : (
             <div className="flex gap-3">
               {gameState.status === GameStatus.WON && (
@@ -250,17 +260,18 @@ const App: React.FC = () => {
                     <button onClick={closeReplay} className="p-3 hover:bg-red-900/50 text-red-300 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
                   </div>
                 )
-              )}
+              )
+              }
               {(!isReplayMode || gameState.status !== GameStatus.WON) && (
                 <button onClick={() => resetGame()} className="flex-1 bg-white border border-stone-200 text-stone-800 py-4 rounded-2xl font-bold shadow-sm hover:bg-stone-50 active:scale-[0.98] transition-all">New Game</button>
               )}
             </div>
           )}
         </div>
-      </main>
+      </main >
 
       {/* 3. Bottom Navigation Bar */}
-      <div className="flex-none bg-white border-t border-stone-200 px-6 py-2 pb-4 safe-area-bottom z-20 flex justify-center shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.03)]">
+      < div className="flex-none bg-white border-t border-stone-200 px-6 py-2 pb-4 safe-area-bottom z-20 flex justify-center shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.03)]" >
         <button
           onClick={() => setActiveTab(activeTab === 'log' ? null : 'log')}
           className={`flex flex-col items-center justify-center gap-1.5 py-2 rounded-2xl transition-all duration-300 px-6 ${activeTab === 'log' ? 'bg-stone-100 text-stone-900 -translate-y-1' : 'text-stone-400 hover:text-stone-600'}`}
@@ -268,58 +279,62 @@ const App: React.FC = () => {
           <ClipboardList className={`w-6 h-6 ${activeTab === 'log' ? 'stroke-2' : 'stroke-1.5'}`} />
           <span className="text-[10px] font-bold uppercase tracking-wider">Log</span>
         </button>
-      </div>
+      </div >
 
       {/* 4. Bottom Sheet Overlay (Drawer) */}
-      {activeTab && (
-        <>
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-stone-900/20 backdrop-blur-[2px] z-30 animate-in fade-in duration-300" onClick={() => setActiveTab(null)} />
+      {
+        activeTab && (
+          <>
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-stone-900/20 backdrop-blur-[2px] z-30 animate-in fade-in duration-300" onClick={() => setActiveTab(null)} />
 
-          {/* Sheet Content */}
-          <div className="absolute bottom-0 left-0 right-0 z-40 bg-white rounded-t-[2rem] shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.1)] animate-in slide-in-from-bottom duration-300 flex flex-col h-[55vh] max-h-[600px]">
-            {/* Handle Bar */}
-            <div className="w-full flex justify-center pt-3 pb-1" onClick={() => setActiveTab(null)}>
-              <div className="w-12 h-1.5 bg-stone-200 rounded-full" />
-            </div>
+            {/* Sheet Content */}
+            <div className="absolute bottom-0 left-0 right-0 z-40 bg-white rounded-t-[2rem] shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.1)] animate-in slide-in-from-bottom duration-300 flex flex-col h-[55vh] max-h-[600px]">
+              {/* Handle Bar */}
+              <div className="w-full flex justify-center pt-3 pb-1" onClick={() => setActiveTab(null)}>
+                <div className="w-12 h-1.5 bg-stone-200 rounded-full" />
+              </div>
 
-            <div className="flex-none px-6 py-3 border-b border-stone-50 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-stone-800 flex items-center gap-2">
-                <ClipboardList className="w-5 h-5 text-stone-500" /> Investigation Log
-              </h3>
-              <button onClick={() => setActiveTab(null)} className="p-2 bg-stone-50 rounded-full hover:bg-stone-100 transition-colors text-stone-400"><X className="w-4 h-4" /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 bg-stone-50/30">
-              <Log history={gameState.history} />
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Rules Modal Overlay */}
-      {showRules && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-6 max-w-xs w-full shadow-2xl space-y-5 border border-white/50">
-            <div className="flex justify-between items-center">
-              <h3 className="text-xl font-bold text-stone-800 tracking-tight">Fox & Rabbit Rules</h3>
-              <button onClick={() => setShowRules(false)} className="text-stone-400 hover:text-stone-600 p-1"><X className="w-6 h-6" /></button>
-            </div>
-            <div className="text-sm text-stone-600 space-y-3 leading-relaxed">
-              <p>The rabbit is in a <strong>superposition</strong>! It exists in ALL possible holes at once.</p>
-              <ul className="list-disc pl-4 space-y-2 marker:text-amber-500">
-                <li>Check a hole to <strong>collapse</strong> the possibilities.</li>
-                <li>If the rabbit <em>could</em> be there, checking it removes that possibility.</li>
-                <li>After a check, all potential rabbits move 1 step (left or right).</li>
-              </ul>
-              <div className="bg-stone-100 p-4 rounded-2xl text-xs font-medium text-stone-500 border border-stone-200/60">
-                Win by eliminating all possibilities except <strong>ONE</strong>, then catch it!
+              <div className="flex-none px-6 py-3 border-b border-stone-50 flex items-center justify-between">
+                <h3 className="text-lg font-bold text-stone-800 flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5 text-stone-500" /> Investigation Log
+                </h3>
+                <button onClick={() => setActiveTab(null)} className="p-2 bg-stone-50 rounded-full hover:bg-stone-100 transition-colors text-stone-400"><X className="w-4 h-4" /></button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 bg-stone-50/30">
+                <Log history={gameState.history} />
               </div>
             </div>
-            <button onClick={() => setShowRules(false)} className="w-full py-4 bg-stone-900 text-white rounded-2xl font-bold text-lg hover:bg-black transition-transform active:scale-[0.98] shadow-xl shadow-stone-900/20">Let's Hunt</button>
+          </>
+        )
+      }
+
+      {/* Rules Modal Overlay */}
+      {
+        showRules && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl p-6 max-w-xs w-full shadow-2xl space-y-5 border border-white/50">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-bold text-stone-800 tracking-tight">Fox & Rabbit Rules</h3>
+                <button onClick={() => setShowRules(false)} className="text-stone-400 hover:text-stone-600 p-1"><X className="w-6 h-6" /></button>
+              </div>
+              <div className="text-sm text-stone-600 space-y-3 leading-relaxed">
+                <p>The rabbit is in a <strong>superposition</strong>! It exists in ALL possible holes at once.</p>
+                <ul className="list-disc pl-4 space-y-2 marker:text-amber-500">
+                  <li>Check a hole to <strong>collapse</strong> the possibilities.</li>
+                  <li>If the rabbit <em>could</em> be there, checking it removes that possibility.</li>
+                  <li>After a check, all potential rabbits move 1 step (left or right).</li>
+                </ul>
+                <div className="bg-stone-100 p-4 rounded-2xl text-xs font-medium text-stone-500 border border-stone-200/60">
+                  Win by eliminating all possibilities except <strong>ONE</strong>, then catch it!
+                </div>
+              </div>
+              <button onClick={() => setShowRules(false)} className="w-full py-4 bg-stone-900 text-white rounded-2xl font-bold text-lg hover:bg-black transition-transform active:scale-[0.98] shadow-xl shadow-stone-900/20">Let's Hunt</button>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 
