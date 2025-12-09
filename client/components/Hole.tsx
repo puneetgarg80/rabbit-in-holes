@@ -39,7 +39,7 @@ export const Hole: React.FC<HoleProps> = ({
     if (isChecked) {
       // Caught!
       stateClasses = "bg-green-500 border-green-600 shadow-lg scale-110";
-      icon = <Rabbit className="text-white w-6 h-6 sm:w-10 sm:h-10 animate-bounce" />;
+      icon = <Rabbit className="text-white w-6 h-6 sm:w-10 sm:h-10" />;
     } else {
       // Revealed but not checked (Replay mode or Debug)
       stateClasses = "bg-stone-300 border-stone-400 opacity-90";

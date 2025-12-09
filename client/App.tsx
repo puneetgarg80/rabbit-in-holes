@@ -3,7 +3,7 @@ import { Hole } from './components/Hole';
 import { Log } from './components/Log';
 
 import { GameState, GameStatus, HistoryEntry } from './types';
-import { RefreshCw, Trophy, Info, Minus, Plus, X, Play, SkipBack, SkipForward, ChevronLeft, ChevronRight, Pause, ClipboardList } from 'lucide-react';
+import { RefreshCw, Trophy, Info, Minus, Plus, X, Play, SkipBack, SkipForward, ChevronLeft, ChevronRight, Pause, ClipboardList, Smartphone } from 'lucide-react';
 
 const App: React.FC = () => {
   const initialHoleCount = 5;
@@ -31,6 +31,46 @@ const App: React.FC = () => {
 
   // UI State for Bottom Sheet
   const [activeTab, setActiveTab] = useState<'log' | null>(null);
+
+  // Orientation State
+  const [isLandscape, setIsLandscape] = useState(true); // Default to true to avoid flash, check on mount
+  const [showRotatePrompt, setShowRotatePrompt] = useState(false);
+
+  useEffect(() => {
+    const checkOrientation = () => {
+      // Check if device is likely mobile (small width) and portrait
+      const isMobile = window.matchMedia("(max-width: 768px)").matches;
+      const isPortrait = window.innerHeight > window.innerWidth;
+
+      setIsLandscape(!isPortrait);
+
+      // If mobile and portrait, suggest rotation
+      if (isMobile && isPortrait) {
+        setShowRotatePrompt(true);
+      } else {
+        setShowRotatePrompt(false);
+        // Attempt lock if possible (Chrome Android etc)
+        if (screen.orientation && 'lock' in screen.orientation) {
+          // We act "optimistically" here, catch errors silently
+          (screen.orientation as any).lock('landscape').catch(() => { });
+        }
+      }
+    };
+
+    checkOrientation();
+    window.addEventListener('resize', checkOrientation);
+    if (screen.orientation) {
+      screen.orientation.addEventListener('change', checkOrientation);
+    }
+
+    return () => {
+      window.removeEventListener('resize', checkOrientation);
+      if (screen.orientation) {
+        screen.orientation.removeEventListener('change', checkOrientation);
+      }
+    };
+  }, []);
+
 
   // --- Logic Helpers ---
   const backtrackPath = (candidatesHistory: number[][], history: HistoryEntry[], winningHole: number): number[] => {
@@ -168,16 +208,25 @@ const App: React.FC = () => {
             {isReplayMode ? <span className="text-amber-600">Replay Mode</span> : `Day ${gameState.day}`}
           </p>
         </div>
-        <button onClick={() => setShowRules(true)} className="p-2 text-stone-400 hover:text-stone-600 bg-stone-50 rounded-full">
-          <Info className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Hole Controls moved to Header for Landscape */}
+          <div className="hidden landscape:flex items-center gap-2 mr-4 bg-stone-100 rounded-lg p-1">
+            <button onClick={() => changeHoleCount(-1)} disabled={gameState.holeCount <= 3 || isProcessing || isReplayMode} className="w-6 h-6 flex items-center justify-center bg-white rounded text-stone-600 disabled:opacity-30 hover:bg-stone-50 transition-colors"><Minus className="w-3 h-3" /></button>
+            <span className="font-mono font-bold text-sm text-stone-800 w-4 text-center">{gameState.holeCount}</span>
+            <button onClick={() => changeHoleCount(1)} disabled={gameState.holeCount >= 10 || isProcessing || isReplayMode} className="w-6 h-6 flex items-center justify-center bg-white rounded text-stone-600 disabled:opacity-30 hover:bg-stone-50 transition-colors"><Plus className="w-3 h-3" /></button>
+          </div>
+
+          <button onClick={() => setShowRules(true)} className="p-2 text-stone-400 hover:text-stone-600 bg-stone-50 rounded-full">
+            <Info className="w-5 h-5" />
+          </button>
+        </div>
       </header>
 
       {/* 2. Main Game Area (Flex-Grow) */}
-      <main className="flex-1 flex flex-col relative w-full max-w-lg mx-auto overflow-hidden">
+      <main className="flex-1 flex flex-col relative w-full max-w-4xl mx-auto overflow-hidden landscape:flex-row">
 
-        {/* Top Controls: Hole Count & Restart */}
-        <div className="flex-none p-4 pb-0 flex items-center justify-between animate-in slide-in-from-top-2">
+        {/* Top Controls: Hole Count & Restart (Portrait Only) */}
+        <div className="flex-none p-4 pb-0 flex items-center justify-between animate-in slide-in-from-top-2 landscape:hidden">
           <div className="flex items-center gap-2 bg-white/80 backdrop-blur px-3 py-2 rounded-xl shadow-sm border border-stone-200">
             <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mr-1">Holes</span>
             <button onClick={() => changeHoleCount(-1)} disabled={gameState.holeCount <= 3 || isProcessing || isReplayMode} className="w-6 h-6 flex items-center justify-center bg-stone-100 rounded text-stone-600 disabled:opacity-30 hover:bg-stone-200 transition-colors"><Minus className="w-3 h-3" /></button>
@@ -187,18 +236,42 @@ const App: React.FC = () => {
           <button onClick={() => resetGame()} disabled={isProcessing} className="p-2 bg-white/80 backdrop-blur text-stone-500 rounded-xl shadow-sm border border-stone-200 hover:bg-white active:scale-95 disabled:opacity-50 hover:text-stone-800 transition-colors"><RefreshCw className="w-5 h-5" /></button>
         </div>
 
+        {/* Sidebar Controls (Landscape Only) */}
+        <div className="hidden landscape:flex flex-col justify-center gap-4 p-4 pr-0 z-20">
+          {/* Replay Controls in Sidebar */}
+          {gameState.status === GameStatus.WON && (
+            isReplayMode ? (
+              <div className="flex flex-col gap-2 bg-stone-800 text-white rounded-xl p-2 shadow-lg">
+                <button onClick={toggleAutoReplay} className="p-3 hover:bg-stone-700 rounded-lg text-amber-400 transition-colors flex justify-center">{isPlayingReplay ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}</button>
+                <div className="flex flex-col gap-1">
+                  <button onClick={prevReplayDay} disabled={replayIndex === 0} className="p-3 hover:bg-stone-700 rounded-lg disabled:opacity-30 transition-colors flex justify-center"><ChevronLeft className="w-5 h-5" /></button>
+                  <button onClick={nextReplayDay} disabled={replayIndex === gameState.history.length - 1} className="p-3 hover:bg-stone-700 rounded-lg disabled:opacity-30 transition-colors flex justify-center"><ChevronRight className="w-5 h-5" /></button>
+                </div>
+                <button onClick={closeReplay} className="p-3 hover:bg-red-900/50 text-red-300 rounded-lg transition-colors flex justify-center"><X className="w-5 h-5" /></button>
+              </div>
+            ) : (
+              <button onClick={startReplay} className="p-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl shadow-lg shadow-amber-500/30 active:scale-[0.95] transition-all" title="Watch Replay"><Play className="w-5 h-5 fill-current" /></button>
+            )
+          )}
+
+          {(!isReplayMode || gameState.status !== GameStatus.WON) && (
+            <button onClick={() => resetGame()} disabled={isProcessing} className="p-3 bg-white text-stone-600 rounded-xl shadow-sm border border-stone-200 hover:bg-stone-50 active:scale-95 disabled:opacity-50 transition-colors" title="New Game"><RefreshCw className="w-5 h-5" /></button>
+          )}
+        </div>
+
+
         {/* THE BOARD (Takes up all remaining space, centering content) */}
         <div className="flex-1 flex flex-col justify-center relative min-h-0">
           {/* Holes Container - Scaled to fill width */}
-          <div className="w-full overflow-x-auto scrollbar-hide py-20">
-            <div className="flex justify-center min-w-full px-6">
-              <div className="relative flex gap-2 sm:gap-4">
+          <div className="w-full overflow-x-auto scrollbar-hide py-20 landscape:py-8">
+            <div className="flex justify-center min-w-full px-6 landscape:px-12">
+              <div className="relative flex gap-2 sm:gap-4 md:gap-6">
                 {/* Connector Line */}
                 <div className="absolute top-1/2 left-2 right-2 h-1 bg-stone-300 -z-10 -translate-y-1/2 rounded-full" />
 
                 {/* Sliding Fox Cursor */}
                 {showFox && (
-                  <div className="absolute -top-12 left-0 z-20 w-10 h-10 sm:w-16 sm:h-16 flex justify-center transition-transform duration-300 ease-out pointer-events-none" style={{ transform: `translateX(calc(${foxPosition} * (100% + ${window.innerWidth >= 640 ? '1rem' : '0.5rem'})))` }}>
+                  <div className="absolute -top-12 left-0 z-20 w-10 h-10 sm:w-16 sm:h-16 flex justify-center transition-transform duration-300 ease-out pointer-events-none" style={{ transform: `translateX(calc(${foxPosition} * (100% + ${window.innerWidth >= 768 ? '1.5rem' : (window.innerWidth >= 640 ? '1rem' : '0.5rem')})))` }}>
                     <div className="text-4xl animate-bounce drop-shadow-md filter">🦊</div>
                   </div>
                 )}
@@ -241,8 +314,8 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Bottom Action Area (Fixed within Main) */}
-        <div className="flex-none p-4 pt-0">
+        {/* Bottom Action Area (Fixed within Main) - Hidden in Landscape if empty */}
+        <div className="flex-none p-4 pt-0 landscape:hidden">
           {gameState.status === GameStatus.PLAYING ? (
             <div className="h-4" />
           ) : (
@@ -270,16 +343,17 @@ const App: React.FC = () => {
         </div>
       </main >
 
-      {/* 3. Bottom Navigation Bar */}
-      < div className="flex-none bg-white border-t border-stone-200 px-6 py-2 pb-4 safe-area-bottom z-20 flex justify-center shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.03)]" >
+      {/* 3. Bottom Navigation Bar - Landscape: Move to Side? Or Keep? Keep for now but ensure it doesn't take too much vertical space. */}
+      {/* For landscape, maybe we just hide the Label and make it smaller? */}
+      <div className="flex-none bg-white border-t border-stone-200 px-6 py-2 pb-4 safe-area-bottom z-20 flex justify-center shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.03)] landscape:py-1 landscape:pb-1">
         <button
           onClick={() => setActiveTab(activeTab === 'log' ? null : 'log')}
-          className={`flex flex-col items-center justify-center gap-1.5 py-2 rounded-2xl transition-all duration-300 px-6 ${activeTab === 'log' ? 'bg-stone-100 text-stone-900 -translate-y-1' : 'text-stone-400 hover:text-stone-600'}`}
+          className={`flex flex-col items-center justify-center gap-1.5 py-2 rounded-2xl transition-all duration-300 px-6 ${activeTab === 'log' ? 'bg-stone-100 text-stone-900 -translate-y-1' : 'text-stone-400 hover:text-stone-600'} landscape:flex-row landscape:py-1`}
         >
           <ClipboardList className={`w-6 h-6 ${activeTab === 'log' ? 'stroke-2' : 'stroke-1.5'}`} />
-          <span className="text-[10px] font-bold uppercase tracking-wider">Log</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider landscape:text-xs">Log</span>
         </button>
-      </div >
+      </div>
 
       {/* 4. Bottom Sheet Overlay (Drawer) */}
       {
@@ -289,9 +363,9 @@ const App: React.FC = () => {
             <div className="absolute inset-0 bg-stone-900/20 backdrop-blur-[2px] z-30 animate-in fade-in duration-300" onClick={() => setActiveTab(null)} />
 
             {/* Sheet Content */}
-            <div className="absolute bottom-0 left-0 right-0 z-40 bg-white rounded-t-[2rem] shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.1)] animate-in slide-in-from-bottom duration-300 flex flex-col h-[55vh] max-h-[600px]">
-              {/* Handle Bar */}
-              <div className="w-full flex justify-center pt-3 pb-1" onClick={() => setActiveTab(null)}>
+            <div className="absolute bottom-0 left-0 right-0 z-40 bg-white rounded-t-[2rem] shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.1)] animate-in slide-in-from-bottom duration-300 flex flex-col h-[55vh] max-h-[600px] landscape:h-[80vh] landscape:max-w-md landscape:left-auto landscape:right-0 landscape:rounded-l-[2rem] landscape:rounded-t-none">
+              {/* Handle Bar (Hidden in side sheet mode) */}
+              <div className="w-full flex justify-center pt-3 pb-1 landscape:hidden" onClick={() => setActiveTab(null)}>
                 <div className="w-12 h-1.5 bg-stone-200 rounded-full" />
               </div>
 
@@ -313,28 +387,42 @@ const App: React.FC = () => {
       {
         showRules && (
           <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl p-6 max-w-xs w-full shadow-2xl space-y-5 border border-white/50">
-              <div className="flex justify-between items-center">
-                <h3 className="text-xl font-bold text-stone-800 tracking-tight">Fox & Rabbit Rules</h3>
-                <button onClick={() => setShowRules(false)} className="text-stone-400 hover:text-stone-600 p-1"><X className="w-6 h-6" /></button>
-              </div>
-              <div className="text-sm text-stone-600 space-y-3 leading-relaxed">
-                <p>The rabbit is in a <strong>superposition</strong>! It exists in ALL possible holes at once.</p>
-                <ul className="list-disc pl-4 space-y-2 marker:text-amber-500">
-                  <li>Check a hole to <strong>collapse</strong> the possibilities.</li>
-                  <li>If the rabbit <em>could</em> be there, checking it removes that possibility.</li>
-                  <li>After a check, all potential rabbits move 1 step (left or right).</li>
-                </ul>
-                <div className="bg-stone-100 p-4 rounded-2xl text-xs font-medium text-stone-500 border border-stone-200/60">
-                  Win by eliminating all possibilities except <strong>ONE</strong>, then catch it!
+            <div className="bg-white rounded-3xl p-6 max-w-xs w-full shadow-2xl space-y-5 border border-white/50 landscape:max-w-md landscape:flex landscape:flex-row landscape:gap-6 landscape:p-8 landscape:items-center">
+              <div className="flex-1 space-y-5">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-xl font-bold text-stone-800 tracking-tight">Fox & Rabbit Rules</h3>
+                  <button onClick={() => setShowRules(false)} className="text-stone-400 hover:text-stone-600 p-1 landscape:hidden"><X className="w-6 h-6" /></button>
+                </div>
+                <div className="text-sm text-stone-600 space-y-3 leading-relaxed">
+                  <p>The rabbit is in a <strong>superposition</strong>! It exists in ALL possible holes at once.</p>
+                  <ul className="list-disc pl-4 space-y-2 marker:text-amber-500">
+                    <li>Check a hole to <strong>collapse</strong> the possibilities.</li>
+                    <li>If the rabbit <em>could</em> be there, checking it removes that possibility.</li>
+                    <li>After a check, all potential rabbits move 1 step (left or right).</li>
+                  </ul>
+                  <div className="bg-stone-100 p-4 rounded-2xl text-xs font-medium text-stone-500 border border-stone-200/60">
+                    Win by eliminating all possibilities except <strong>ONE</strong>, then catch it!
+                  </div>
                 </div>
               </div>
-              <button onClick={() => setShowRules(false)} className="w-full py-4 bg-stone-900 text-white rounded-2xl font-bold text-lg hover:bg-black transition-transform active:scale-[0.98] shadow-xl shadow-stone-900/20">Let's Hunt</button>
+              <div className="landscape:w-40 landscape:flex landscape:flex-col landscape:gap-2">
+                <button onClick={() => setShowRules(false)} className="w-full py-4 bg-stone-900 text-white rounded-2xl font-bold text-lg hover:bg-black transition-transform active:scale-[0.98] shadow-xl shadow-stone-900/20">Let's Hunt</button>
+                <button onClick={() => setShowRules(false)} className="hidden landscape:block w-full py-2 text-stone-400 hover:text-stone-600">Close</button>
+              </div>
             </div>
           </div>
         )
       }
-    </div >
+
+      {/* Orientation Prompt Overlay */}
+      {showRotatePrompt && (
+        <div className="fixed inset-0 z-[60] bg-stone-900/95 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
+          <Smartphone className="w-16 h-16 text-stone-400 mb-6 animate-spin-slow" style={{ animationDuration: '3s' }} />
+          <h2 className="text-2xl font-bold text-white mb-2">Please Rotate Your Device</h2>
+          <p className="text-stone-400 max-w-xs">We need a bit more space to hunt properly! Switch to landscape mode for the best experience.</p>
+        </div>
+      )}
+    </div>
   );
 };
 
