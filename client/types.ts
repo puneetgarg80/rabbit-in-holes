@@ -19,5 +19,5 @@ export interface GameState {
   history: HistoryEntry[];
   status: GameStatus;
   lastCheckedIndex: number | null;
-  mousePath: number[]; // Generated at the end of the game for replay
+  rabbitPath: number[]; // Generated at the end of the game for replay
 }

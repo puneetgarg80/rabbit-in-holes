@@ -1,12 +1,12 @@
 import React from 'react';
 import { GameStatus } from '../types';
-import { PawPrint, Rat, Footprints } from 'lucide-react';
+import { PawPrint, Rabbit, Footprints } from 'lucide-react';
 
 interface HoleProps {
   index: number;
   isSelected: boolean;
   isChecked: boolean;
-  isMouse: boolean;
+  isRabbit: boolean;
   gameStatus: GameStatus;
   onSelect: (index: number) => void;
   disabled: boolean;
@@ -16,7 +16,7 @@ export const Hole: React.FC<HoleProps> = ({
   index,
   isSelected,
   isChecked,
-  isMouse,
+  isRabbit,
   gameStatus,
   onSelect,
   disabled
@@ -24,37 +24,37 @@ export const Hole: React.FC<HoleProps> = ({
   // Styles based on state
   // Resized: w-10 h-10 (40px) default, sm:w-16 sm:h-16
   const baseClasses = "relative w-10 h-10 sm:w-16 sm:h-16 rounded-full flex items-center justify-center border-4 transition-all duration-300 transform";
-  
+
   let stateClasses = "bg-stone-800 border-stone-700 shadow-inner"; // Default dark hole
   let icon = null;
 
   // Logic: 
-  // 1. If Game is Won and this hole has the mouse:
+  // 1. If Game is Won and this hole has the rabbit:
   //    - If also Checked: CAUGHT (Green)
   //    - If NOT Checked: REVEALED (Grey/Ghost) - used in replay
   // 2. If Selected: Highlight for potential check (Playing) or past check (Replay)
   // 3. If Checked (and empty): Footprints
 
-  if (gameStatus === GameStatus.WON && isMouse) {
-     if (isChecked) {
-       // Caught!
-       stateClasses = "bg-green-500 border-green-600 shadow-lg scale-110";
-       icon = <Rat className="text-white w-6 h-6 sm:w-10 sm:h-10 animate-bounce" />;
-     } else {
-       // Revealed but not checked (Replay mode or Debug)
-       stateClasses = "bg-stone-300 border-stone-400 opacity-90";
-       icon = <Rat className="text-stone-500 w-6 h-6 sm:w-10 sm:h-10 opacity-75" />;
-     }
+  if (gameStatus === GameStatus.WON && isRabbit) {
+    if (isChecked) {
+      // Caught!
+      stateClasses = "bg-green-500 border-green-600 shadow-lg scale-110";
+      icon = <Rabbit className="text-white w-6 h-6 sm:w-10 sm:h-10 animate-bounce" />;
+    } else {
+      // Revealed but not checked (Replay mode or Debug)
+      stateClasses = "bg-stone-300 border-stone-400 opacity-90";
+      icon = <Rabbit className="text-stone-500 w-6 h-6 sm:w-10 sm:h-10 opacity-75" />;
+    }
   } else if (isSelected) {
-     // Selected to be checked (Active or Replay History)
-     stateClasses = "bg-stone-800 border-amber-500 scale-105 shadow-[0_0_15px_rgba(245,158,11,0.5)]";
-     // Pulse only if actively playing, not during replay
-     const pulseClass = gameStatus === GameStatus.PLAYING ? 'animate-pulse' : '';
-     icon = <PawPrint className={`text-amber-500 w-5 h-5 sm:w-8 sm:h-8 ${pulseClass}`} />;
+    // Selected to be checked (Active or Replay History)
+    stateClasses = "bg-stone-800 border-amber-500 scale-105 shadow-[0_0_15px_rgba(245,158,11,0.5)]";
+    // Pulse only if actively playing, not during replay
+    const pulseClass = gameStatus === GameStatus.PLAYING ? 'animate-pulse' : '';
+    icon = <PawPrint className={`text-amber-500 w-5 h-5 sm:w-8 sm:h-8 ${pulseClass}`} />;
   } else if (isChecked) {
-     // Checked and empty
-     stateClasses = "bg-stone-700 border-stone-600 opacity-80";
-     icon = <Footprints className="text-stone-500 w-5 h-5 sm:w-8 sm:h-8 rotate-12 opacity-50" />;
+    // Checked and empty
+    stateClasses = "bg-stone-700 border-stone-600 opacity-80";
+    icon = <Footprints className="text-stone-500 w-5 h-5 sm:w-8 sm:h-8 rotate-12 opacity-50" />;
   }
 
   return (
@@ -66,11 +66,11 @@ export const Hole: React.FC<HoleProps> = ({
     >
       {/* Hole Number Label - At bottom */}
       <span className="absolute -bottom-6 text-stone-500 text-xs font-bold font-mono">#{index + 1}</span>
-      
+
       {icon}
-      
+
       {/* Dark overlay for depth if just a normal hole */}
-      {!isChecked && !isSelected && !(gameStatus === GameStatus.WON && isMouse) && (
+      {!isChecked && !isSelected && !(gameStatus === GameStatus.WON && isRabbit) && (
         <div className="absolute inset-2 bg-black opacity-30 rounded-full blur-sm pointer-events-none" />
       )}
     </button>

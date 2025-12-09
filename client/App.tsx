@@ -17,7 +17,7 @@ const App: React.FC = () => {
     history: [],
     status: GameStatus.PLAYING,
     lastCheckedIndex: null,
-    mousePath: [],
+    rabbitPath: [],
   });
 
   const [selectedHole, setSelectedHole] = useState<number | null>(null);
@@ -68,7 +68,7 @@ const App: React.FC = () => {
       const winEntry: HistoryEntry = { day, checkedHoleIndex: selectedHole, found: true, remainingPossibilitiesCount: 0 };
 
       setGameState(prev => ({
-        ...prev, status: GameStatus.WON, history: [...prev.history, winEntry], lastCheckedIndex: selectedHole, mousePath: path
+        ...prev, status: GameStatus.WON, history: [...prev.history, winEntry], lastCheckedIndex: selectedHole, rabbitPath: path
       }));
       setIsProcessing(false);
       setSelectedHole(null);
@@ -97,7 +97,7 @@ const App: React.FC = () => {
   const resetGame = (newHoleCount: number = gameState.holeCount) => {
     const allHoles = Array.from({ length: newHoleCount }, (_, i) => i);
     setGameState({
-      holeCount: newHoleCount, possibleHoles: allHoles, candidatesHistory: [allHoles], day: 1, history: [], status: GameStatus.PLAYING, lastCheckedIndex: null, mousePath: [],
+      holeCount: newHoleCount, possibleHoles: allHoles, candidatesHistory: [allHoles], day: 1, history: [], status: GameStatus.PLAYING, lastCheckedIndex: null, rabbitPath: [],
     });
     setSelectedHole(null);
     setReplayIndex(null);
@@ -136,12 +136,12 @@ const App: React.FC = () => {
 
   // --- Display Values ---
   const displayDayIndex = isReplayMode ? replayIndex : (gameState.status === GameStatus.WON ? gameState.history.length - 1 : gameState.day - 1);
-  const displayMousePos = isReplayMode ? gameState.mousePath[displayDayIndex] : (gameState.status === GameStatus.WON ? gameState.lastCheckedIndex! : -1);
+  const displayRabbitPos = isReplayMode ? gameState.rabbitPath[displayDayIndex] : (gameState.status === GameStatus.WON ? gameState.lastCheckedIndex! : -1);
   const displayCheckedPos = isReplayMode ? gameState.history[displayDayIndex]?.checkedHoleIndex : gameState.lastCheckedIndex;
   const displayDayNumber = isReplayMode ? gameState.history[displayDayIndex]?.day : gameState.day;
   const currentPossibilities = isReplayMode ? -1 : gameState.possibleHoles.length;
-  const catPosition = isReplayMode ? displayCheckedPos : selectedHole;
-  const showCat = (gameState.status === GameStatus.PLAYING && selectedHole !== null) || (isReplayMode && catPosition !== null);
+  const foxPosition = isReplayMode ? displayCheckedPos : selectedHole;
+  const showFox = (gameState.status === GameStatus.PLAYING && selectedHole !== null) || (isReplayMode && foxPosition !== null);
 
   return (
     <div className="h-[100dvh] bg-stone-50 text-stone-800 flex flex-col overflow-hidden relative font-sans">
@@ -149,7 +149,7 @@ const App: React.FC = () => {
       {/* 1. Header (Fixed) */}
       <header className="flex-none bg-white border-b border-stone-200 z-10 shadow-sm px-4 h-14 flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-stone-800 tracking-tight leading-tight">Cat & Mouse</h1>
+          <h1 className="text-lg font-bold text-stone-800 tracking-tight leading-tight">Catch the Rabbit</h1>
           <p className="text-[10px] text-stone-500 font-medium uppercase tracking-wide">
             {isReplayMode ? <span className="text-amber-600">Replay Mode</span> : `Day ${gameState.day}`}
           </p>
@@ -175,34 +175,27 @@ const App: React.FC = () => {
 
         {/* THE BOARD (Takes up all remaining space, centering content) */}
         <div className="flex-1 flex flex-col justify-center relative min-h-0">
-          {/* Progress Hint Line */}
-          {gameState.status === GameStatus.PLAYING && (
-            <div className="absolute top-0 left-4 right-4 h-1.5 bg-stone-200/50 rounded-full overflow-hidden mt-4">
-              <div className="h-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-500 ease-out" style={{ width: `${Math.max(5, ((gameState.holeCount - currentPossibilities) / gameState.holeCount) * 100)}%` }} />
-            </div>
-          )}
-
           {/* Holes Container - Scaled to fill width */}
-          <div className="w-full overflow-x-auto scrollbar-hide py-12">
+          <div className="w-full overflow-x-auto scrollbar-hide py-20">
             <div className="flex justify-center min-w-full px-6">
               <div className="relative flex gap-2 sm:gap-4">
                 {/* Connector Line */}
                 <div className="absolute top-1/2 left-2 right-2 h-1 bg-stone-300 -z-10 -translate-y-1/2 rounded-full" />
 
-                {/* Sliding Cat Cursor */}
-                {showCat && catPosition !== null && (
-                  <div className="absolute -top-12 left-0 z-20 w-10 h-10 sm:w-16 sm:h-16 flex justify-center transition-transform duration-300 ease-out pointer-events-none" style={{ transform: `translateX(calc(${catPosition} * (100% + ${window.innerWidth >= 640 ? '1rem' : '0.5rem'})))` }}>
-                    <div className="text-4xl animate-bounce drop-shadow-md filter">🐱</div>
+                {/* Sliding Fox Cursor */}
+                {showFox && foxPosition !== null && (
+                  <div className="absolute -top-12 left-0 z-20 w-10 h-10 sm:w-16 sm:h-16 flex justify-center transition-transform duration-300 ease-out pointer-events-none" style={{ transform: `translateX(calc(${foxPosition} * (100% + ${window.innerWidth >= 640 ? '1rem' : '0.5rem'})))` }}>
+                    <div className="text-4xl animate-bounce drop-shadow-md filter">🦊</div>
                   </div>
                 )}
 
                 {Array.from({ length: gameState.holeCount }).map((_, i) => {
                   const isChecked = displayCheckedPos === i;
-                  const isMouse = isReplayMode ? displayMousePos === i : (gameState.status === GameStatus.WON && gameState.lastCheckedIndex === i);
+                  const isRabbit = isReplayMode ? displayRabbitPos === i : (gameState.status === GameStatus.WON && gameState.lastCheckedIndex === i);
                   const isSelected = (!isReplayMode && selectedHole === i) || (isReplayMode && displayCheckedPos === i);
                   return (
                     <div key={i} className="flex-shrink-0 relative">
-                      <Hole index={i} isSelected={isSelected} isChecked={isChecked} isMouse={isMouse} gameStatus={gameState.status} onSelect={setSelectedHole} disabled={gameState.status !== GameStatus.PLAYING || isProcessing || isReplayMode} />
+                      <Hole index={i} isSelected={isSelected} isChecked={isChecked} isRabbit={isRabbit} gameStatus={gameState.status} onSelect={setSelectedHole} disabled={gameState.status !== GameStatus.PLAYING || isProcessing || isReplayMode} />
                     </div>
                   );
                 })}
@@ -306,15 +299,15 @@ const App: React.FC = () => {
         <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-6 max-w-xs w-full shadow-2xl space-y-5 border border-white/50">
             <div className="flex justify-between items-center">
-              <h3 className="text-xl font-bold text-stone-800 tracking-tight">Cat & Mouse Rules</h3>
+              <h3 className="text-xl font-bold text-stone-800 tracking-tight">Fox & Rabbit Rules</h3>
               <button onClick={() => setShowRules(false)} className="text-stone-400 hover:text-stone-600 p-1"><X className="w-6 h-6" /></button>
             </div>
             <div className="text-sm text-stone-600 space-y-3 leading-relaxed">
-              <p>The mouse is in a <strong>superposition</strong>! It exists in ALL possible holes at once.</p>
+              <p>The rabbit is in a <strong>superposition</strong>! It exists in ALL possible holes at once.</p>
               <ul className="list-disc pl-4 space-y-2 marker:text-amber-500">
                 <li>Check a hole to <strong>collapse</strong> the possibilities.</li>
-                <li>If the mouse <em>could</em> be there, checking it removes that possibility.</li>
-                <li>After a check, all potential mice move 1 step (left or right).</li>
+                <li>If the rabbit <em>could</em> be there, checking it removes that possibility.</li>
+                <li>After a check, all potential rabbits move 1 step (left or right).</li>
               </ul>
               <div className="bg-stone-100 p-4 rounded-2xl text-xs font-medium text-stone-500 border border-stone-200/60">
                 Win by eliminating all possibilities except <strong>ONE</strong>, then catch it!
