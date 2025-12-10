@@ -191,7 +191,9 @@ const App: React.FC = () => {
   const displayCheckedPos = isReplayMode ? gameState.history[displayDayIndex]?.checkedHoleIndex : gameState.lastCheckedIndex;
   const displayDayNumber = isReplayMode ? gameState.history[displayDayIndex]?.day : gameState.day;
   const currentPossibilities = isReplayMode ? -1 : gameState.possibleHoles.length;
-  const foxPosition = isReplayMode ? displayCheckedPos : gameState.lastCheckedIndex;
+  const foxPosition = isReplayMode
+    ? displayCheckedPos
+    : (selectedHole !== null ? selectedHole : gameState.lastCheckedIndex);
   const showFox = (foxPosition !== null);
 
   return (
