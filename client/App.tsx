@@ -3,7 +3,7 @@ import { Hole } from './components/Hole';
 import { Log } from './components/Log';
 
 import { GameState, GameStatus, HistoryEntry } from './types';
-import { RefreshCw, Trophy, Info, Minus, Plus, X, Play, SkipBack, SkipForward, ChevronLeft, ChevronRight, Pause, ClipboardList, Smartphone, Rabbit, MapPin, Repeat, Bug } from 'lucide-react';
+import { RefreshCw, Trophy, Info, Minus, Plus, X, Play, SkipBack, SkipForward, ChevronLeft, ChevronRight, Pause, ClipboardList, Smartphone, Rabbit, MapPin, Repeat, Bug, Sun, Moon } from 'lucide-react';
 const App: React.FC = () => {
   const initialHoleCount = 5;
 
@@ -25,6 +25,9 @@ const App: React.FC = () => {
 
   // Debug Mode
   const [isDebugMode, setIsDebugMode] = useState(false);
+
+  // Day/Night Cycle Phase
+  const [phase, setPhase] = useState<'day' | 'sunset' | 'night' | 'sunrise'>('day');
 
   // Replay State
   const [replayIndex, setReplayIndex] = useState<number | null>(null);
@@ -107,12 +110,15 @@ const App: React.FC = () => {
     setSelectedHole(targetHole);
 
     setIsProcessing(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // 1. Initial Fox Animation (Movement + Inspection)
+    await new Promise(resolve => setTimeout(resolve, 600));
 
     const { possibleHoles, day, history, candidatesHistory, holeCount } = gameState;
     const isWin = possibleHoles.length === 1 && possibleHoles[0] === targetHole;
 
     if (isWin) {
+      // WIN LOGIC - No Day Cycle needed, just reveal
       const path = backtrackPath(candidatesHistory, history, targetHole);
       const winEntry: HistoryEntry = { day, checkedHoleIndex: targetHole, found: true, remainingPossibilitiesCount: 0 };
 
@@ -124,6 +130,15 @@ const App: React.FC = () => {
       return;
     }
 
+    // MISS LOGIC - Trigger Day/Night Cycle
+    // Phase 1: Sunset (Day ending)
+    setPhase('sunset');
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Darkening
+
+    // Phase 2: Night (Rabbit moves)
+    setPhase('night');
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Total darkness, calculation happens
+
     const afterCheckCandidates = possibleHoles.filter(h => h !== targetHole);
     const nextDayCandidatesSet = new Set<number>();
     afterCheckCandidates.forEach(pos => {
@@ -134,12 +149,22 @@ const App: React.FC = () => {
 
     const newEntry: HistoryEntry = { day, checkedHoleIndex: targetHole, found: false, remainingPossibilitiesCount: afterCheckCandidates.length };
 
+    // Update Game State (New Day)
     setGameState(prev => ({
       ...prev, day: prev.day + 1, history: [...prev.history, newEntry], possibleHoles: nextPossibleHoles, candidatesHistory: [...prev.candidatesHistory, nextPossibleHoles], lastCheckedIndex: targetHole
     }));
 
-    setIsProcessing(false);
+    // Clear selection so fox stays on last checked position but doesn't look "active"
     setSelectedHole(null);
+
+    // Phase 3: Sunrise
+    setPhase('sunrise');
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Brightening
+
+    // Phase 4: Day (Ready for input)
+    setPhase('day');
+    setIsProcessing(false);
+
   }, [selectedHole, gameState, isProcessing]);
 
   const handleHoleClick = (index: number) => {
@@ -199,51 +224,109 @@ const App: React.FC = () => {
     : (selectedHole !== null ? selectedHole : gameState.lastCheckedIndex);
   const showFox = (foxPosition !== null);
 
+  // --- Visual Helpers for Sky ---
+  const getSkyClass = () => {
+    switch (phase) {
+      case 'sunset': return 'bg-gradient-to-b from-indigo-900 to-orange-700'; // Rich sunset
+      case 'night': return 'bg-slate-950'; // Deep night
+      case 'sunrise': return 'bg-gradient-to-b from-sky-800 to-amber-200'; // Bright sunrise
+      default: return 'bg-sky-100'; // Light Day Theme
+    }
+  };
+
+  const isDay = phase === 'day';
+  const textColor = isDay ? 'text-stone-800' : 'text-stone-200';
+  const subTextColor = isDay ? 'text-stone-500' : 'text-stone-400';
+
+  // UI Component Classes
+  const headerClass = isDay
+    ? 'bg-white/80 border-stone-200 text-stone-800'
+    : 'bg-stone-900/60 border-stone-800/50 text-stone-200';
+
+  const bottomNavClass = isDay
+    ? 'bg-white border-stone-200 shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.1)]'
+    : 'bg-stone-900 border-stone-800 shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.2)]';
+
+  const navButtonActive = isDay
+    ? 'bg-stone-100 text-stone-900 shadow-sm'
+    : 'bg-stone-800 text-stone-200 shadow-md';
+
   return (
-    <div className="h-[100dvh] bg-stone-950 text-stone-200 flex flex-col overflow-hidden relative font-sans">
+    <div className={`h-[100dvh] transition-colors duration-[1500ms] ease-in-out ${textColor} flex flex-col overflow-hidden relative font-sans ${getSkyClass()} `}>
+
+      {/* Dynamic Sky Objects (Sun/Moon) */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+        {/* Sun - Visible in Day, sets in Sunset, rises in Sunrise */}
+        <div className={`absolute top-10 right-10 transition-all duration-[1500ms] ease-in-out transform
+            ${phase === 'day' ? 'translate-y-0 opacity-100' : ''}
+            ${phase === 'sunset' ? 'translate-y-32 opacity-50 contrast-125' : ''}
+            ${phase === 'night' ? 'translate-y-96 opacity-0' : ''}
+            ${phase === 'sunrise' ? 'translate-y-0 opacity-80' : ''}
+        `}>
+          <Sun className={`w-24 h-24 ${phase === 'sunset' ? 'text-orange-500' : 'text-amber-400'} filter blur-sm`} />
+        </div>
+
+        {/* Moon - Visible in Night */}
+        <div className={`absolute top-10 left-10 transition-all duration-[1500ms] ease-in-out transform
+            ${phase === 'night' ? 'translate-y-0 opacity-100' : '-translate-y-32 opacity-0'}
+        `}>
+          <Moon className="w-16 h-16 text-slate-200 filter drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
+        </div>
+
+        {/* Stars (Night Only) */}
+        <div className={`absolute inset-0 transition-opacity duration-[1500ms] ${phase === 'night' ? 'opacity-100' : 'opacity-0'} `}>
+          <div className="absolute top-1/4 left-1/4 w-1 h-1 bg-white rounded-full animate-pulse" style={{ animationDelay: '0.1s' }} />
+          <div className="absolute top-1/3 right-1/3 w-1 h-1 bg-white rounded-full animate-pulse" style={{ animationDelay: '0.5s' }} />
+          <div className="absolute top-1/2 left-1/3 w-1.5 h-1.5 bg-white rounded-full animate-pulse" style={{ animationDelay: '0.8s' }} />
+          <div className="absolute top-20 right-20 w-1 h-1 bg-white rounded-full" />
+          <div className="absolute bottom-1/4 right-1/4 w-1 h-1 bg-white rounded-full animate-pulse" style={{ animationDelay: '1.2s' }} />
+        </div>
+      </div>
 
       {/* 1. Header (Fixed) */}
-      <header className="flex-none bg-stone-900 border-b border-stone-800 z-10 shadow-md px-4 h-14 flex items-center justify-between">
+      <header className={`flex-none backdrop-blur-md border-b z-10 shadow-sm px-4 h-14 flex items-center justify-between transition-colors duration-1000 ${headerClass}`}>
         <div>
-          <h1 className="text-lg font-bold text-stone-100 tracking-tight leading-tight">Catch the Rabbit</h1>
-          <p className="text-[10px] text-stone-500 font-medium uppercase tracking-wide">
-            {isReplayMode ? <span className="text-amber-500">Replay Mode</span> : `Day ${gameState.day}`}
+          <h1 className={`text-lg font-bold tracking-tight leading-tight ${isDay ? 'text-stone-800' : 'text-stone-100'}`}>Catch the Rabbit</h1>
+          <p className={`text-[10px] font-medium uppercase tracking-wide ${subTextColor}`}>
+            {isReplayMode ? <span className="text-amber-500">Replay Mode</span> : `Day ${gameState.day} `}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {/* Hole Controls moved to Header for Landscape */}
-          <div className="hidden landscape:flex items-center gap-2 mr-4 bg-stone-800 rounded-lg p-1 border border-stone-700">
-            <button onClick={() => changeHoleCount(-1)} disabled={gameState.holeCount <= 3 || isProcessing || isReplayMode} className="w-6 h-6 flex items-center justify-center bg-stone-700 rounded text-stone-400 disabled:opacity-30 hover:bg-stone-600 transition-colors"><Minus className="w-3 h-3" /></button>
-            <span className="font-mono font-bold text-sm text-stone-300 w-4 text-center">{gameState.holeCount}</span>
-            <button onClick={() => changeHoleCount(1)} disabled={gameState.holeCount >= 10 || isProcessing || isReplayMode} className="w-6 h-6 flex items-center justify-center bg-stone-700 rounded text-stone-400 disabled:opacity-30 hover:bg-stone-600 transition-colors"><Plus className="w-3 h-3" /></button>
+          <div className={`hidden landscape:flex items-center gap-2 mr-4 rounded-lg p-1 border ${isDay ? 'bg-stone-200 border-stone-300' : 'bg-stone-800 border-stone-700'}`}>
+            <button onClick={() => changeHoleCount(-1)} disabled={gameState.holeCount <= 3 || isProcessing || isReplayMode} className={`w-6 h-6 flex items-center justify-center rounded disabled:opacity-30 transition-colors ${isDay ? 'bg-stone-300 text-stone-600 hover:bg-stone-400' : 'bg-stone-700 text-stone-400 hover:bg-stone-600'}`}><Minus className="w-3 h-3" /></button>
+            <span className={`font-mono font-bold text-sm w-4 text-center ${isDay ? 'text-stone-700' : 'text-stone-300'}`}>{gameState.holeCount}</span>
+            <button onClick={() => changeHoleCount(1)} disabled={gameState.holeCount >= 10 || isProcessing || isReplayMode} className={`w-6 h-6 flex items-center justify-center rounded disabled:opacity-30 transition-colors ${isDay ? 'bg-stone-300 text-stone-600 hover:bg-stone-400' : 'bg-stone-700 text-stone-400 hover:bg-stone-600'}`}><Plus className="w-3 h-3" /></button>
           </div>
 
           <button
             onClick={() => setIsDebugMode(!isDebugMode)}
-            className={`p-2 rounded-full transition-all duration-300 ${isDebugMode ? 'bg-indigo-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.5)]' : 'text-stone-500 hover:text-stone-300 bg-stone-800 hover:bg-stone-700'}`}
+            className={`p-2 rounded-full transition-all duration-300 ${isDebugMode ? 'bg-indigo-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.5)]' : (isDay ? 'text-stone-400 hover:text-stone-600 bg-stone-200 hover:bg-stone-300' : 'text-stone-500 hover:text-stone-300 bg-stone-800 hover:bg-stone-700')} `}
             title={isDebugMode ? "Debug Mode Active" : "Enable Debug Mode"}
           >
             <Bug className="w-5 h-5" />
           </button>
 
-          <button onClick={() => setShowRules(true)} className="p-2 text-stone-500 hover:text-stone-300 bg-stone-800 rounded-full hover:bg-stone-700 transition-colors">
+          <button onClick={() => setShowRules(true)} className={`p-2 rounded-full transition-colors ${isDay ? 'text-stone-400 hover:text-stone-600 bg-stone-200 hover:bg-stone-300' : 'text-stone-500 hover:text-stone-300 bg-stone-800 hover:bg-stone-700'}`}>
             <Info className="w-5 h-5" />
           </button>
         </div>
       </header>
 
       {/* 2. Main Game Area (Flex-Grow) */}
-      <main className="flex-1 flex flex-col relative w-full max-w-4xl mx-auto overflow-hidden landscape:flex-row">
+      <main className="flex-1 flex flex-col relative z-10 w-full max-w-4xl mx-auto overflow-hidden landscape:flex-row">
 
         {/* Top Controls: Hole Count & Restart (Portrait Only) */}
         <div className="flex-none p-4 pb-0 flex items-center justify-between animate-in slide-in-from-top-2 landscape:hidden">
-          <div className="flex items-center gap-2 bg-stone-900/80 backdrop-blur px-3 py-2 rounded-xl shadow-lg border border-stone-800">
-            <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mr-1">Holes</span>
-            <button onClick={() => changeHoleCount(-1)} disabled={gameState.holeCount <= 3 || isProcessing || isReplayMode} className="w-6 h-6 flex items-center justify-center bg-stone-800 rounded text-stone-400 disabled:opacity-30 hover:bg-stone-700 transition-colors"><Minus className="w-3 h-3" /></button>
-            <span className="font-mono font-bold text-lg text-stone-200 w-4 text-center">{gameState.holeCount}</span>
-            <button onClick={() => changeHoleCount(1)} disabled={gameState.holeCount >= 10 || isProcessing || isReplayMode} className="w-6 h-6 flex items-center justify-center bg-stone-800 rounded text-stone-400 disabled:opacity-30 hover:bg-stone-700 transition-colors"><Plus className="w-3 h-3" /></button>
+          <div className={`flex items-center gap-3 rounded-2xl p-2 px-4 shadow-sm border ${isDay ? 'bg-white/60 border-stone-200' : 'bg-stone-900/40 border-stone-800/50'}`}>
+            <span className={`text-xs font-bold uppercase tracking-wider ${subTextColor}`}>Holes</span>
+            <div className="flex items-center gap-3">
+              <button onClick={() => changeHoleCount(-1)} disabled={gameState.holeCount <= 3 || isProcessing || isReplayMode} className={`p-1.5 rounded-lg disabled:opacity-30 transition-colors ${isDay ? 'bg-stone-200 text-stone-600 hover:bg-stone-300' : 'bg-stone-800 text-stone-400 hover:bg-stone-700'}`}><Minus className="w-4 h-4" /></button>
+              <span className="font-mono font-bold text-lg w-4 text-center">{gameState.holeCount}</span>
+              <button onClick={() => changeHoleCount(1)} disabled={gameState.holeCount >= 10 || isProcessing || isReplayMode} className={`p-1.5 rounded-lg disabled:opacity-30 transition-colors ${isDay ? 'bg-stone-200 text-stone-600 hover:bg-stone-300' : 'bg-stone-800 text-stone-400 hover:bg-stone-700'}`}><Plus className="w-4 h-4" /></button>
+            </div>
           </div>
-          <button onClick={() => resetGame()} disabled={isProcessing} className="p-2 bg-stone-900/80 backdrop-blur text-stone-500 rounded-xl shadow-lg border border-stone-800 hover:bg-stone-800 active:scale-95 disabled:opacity-50 hover:text-stone-300 transition-colors"><RefreshCw className="w-5 h-5" /></button>
+          <button onClick={() => resetGame()} disabled={isProcessing} className={`p-2 rounded-xl shadow-lg border hover:bg-stone-800 active:scale-95 disabled:opacity-50 transition-colors ${isDay ? 'bg-white/60 border-stone-200 text-stone-600 hover:bg-stone-50' : 'bg-stone-900/80 backdrop-blur text-stone-500 border-stone-800 hover:text-stone-300'}`}><RefreshCw className="w-5 h-5" /></button>
         </div>
 
         {/* Sidebar Controls (Landscape Only) */}
@@ -251,11 +334,11 @@ const App: React.FC = () => {
           {/* Replay Controls in Sidebar */}
           {gameState.status === GameStatus.WON && (
             isReplayMode ? (
-              <div className="flex flex-col gap-2 bg-stone-900 border border-stone-800 text-white rounded-xl p-2 shadow-xl">
-                <button onClick={toggleAutoReplay} className="p-3 hover:bg-stone-800 rounded-lg text-amber-500 transition-colors flex justify-center">{isPlayingReplay ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}</button>
+              <div className={`flex flex-col gap-2 border rounded-xl p-2 shadow-xl ${isDay ? 'bg-white border-stone-200 text-stone-800' : 'bg-stone-900 border-stone-800 text-white'}`}>
+                <button onClick={toggleAutoReplay} className={`p-3 rounded-lg text-amber-500 transition-colors flex justify-center ${isDay ? 'hover:bg-stone-100' : 'hover:bg-stone-800'}`}>{isPlayingReplay ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}</button>
                 <div className="flex flex-col gap-1">
-                  <button onClick={prevReplayDay} disabled={replayIndex === 0} className="p-3 hover:bg-stone-800 rounded-lg disabled:opacity-30 transition-colors flex justify-center"><ChevronLeft className="w-5 h-5" /></button>
-                  <button onClick={nextReplayDay} disabled={replayIndex === gameState.history.length - 1} className="p-3 hover:bg-stone-800 rounded-lg disabled:opacity-30 transition-colors flex justify-center"><ChevronRight className="w-5 h-5" /></button>
+                  <button onClick={prevReplayDay} disabled={replayIndex === 0} className={`p-3 rounded-lg disabled:opacity-30 transition-colors flex justify-center ${isDay ? 'hover:bg-stone-100' : 'hover:bg-stone-800'}`}><ChevronLeft className="w-5 h-5" /></button>
+                  <button onClick={nextReplayDay} disabled={replayIndex === gameState.history.length - 1} className={`p-3 rounded-lg disabled:opacity-30 transition-colors flex justify-center ${isDay ? 'hover:bg-stone-100' : 'hover:bg-stone-800'}`}><ChevronRight className="w-5 h-5" /></button>
                 </div>
                 <button onClick={closeReplay} className="p-3 hover:bg-red-900/40 text-red-400 rounded-lg transition-colors flex justify-center"><X className="w-5 h-5" /></button>
               </div>
@@ -265,7 +348,7 @@ const App: React.FC = () => {
           )}
 
           {(!isReplayMode || gameState.status !== GameStatus.WON) && (
-            <button onClick={() => resetGame()} disabled={isProcessing} className="p-3 bg-stone-900 text-stone-500 rounded-xl shadow-lg border border-stone-800 hover:bg-stone-800 hover:text-stone-300 active:scale-95 disabled:opacity-50 transition-colors" title="New Game"><RefreshCw className="w-5 h-5" /></button>
+            <button onClick={() => resetGame()} disabled={isProcessing} className={`p-3 rounded-xl shadow-lg border hover:scale-105 active:scale-95 disabled:opacity-50 transition-all ${isDay ? 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50' : 'bg-stone-900 text-stone-500 border-stone-800 hover:bg-stone-800 hover:text-stone-300'}`} title="New Game"><RefreshCw className="w-5 h-5" /></button>
           )}
         </div>
 
@@ -277,7 +360,7 @@ const App: React.FC = () => {
             <div className="flex justify-center min-w-full px-6 landscape:px-12">
               <div className="relative flex gap-2 sm:gap-4 md:gap-6">
                 {/* Connector Line */}
-                <div className="absolute top-1/2 left-2 right-2 h-1 bg-stone-800 -z-10 -translate-y-1/2 rounded-full" />
+                <div className={`absolute top-1/2 left-2 right-2 h-1 -z-10 -translate-y-1/2 rounded-full ${isDay ? 'bg-stone-300' : 'bg-stone-800'}`} />
 
                 {/* Sliding Fox Cursor */}
                 {showFox && (
@@ -354,12 +437,12 @@ const App: React.FC = () => {
                 </span>
               )
             ) : selectedHole !== null ? (
-              <span className="text-stone-300 font-bold animate-pulse bg-stone-900/80 backdrop-blur px-5 py-1.5 rounded-full shadow-sm border border-stone-800">
+              <span className={`font-bold animate-pulse backdrop-blur px-5 py-1.5 rounded-full shadow-sm border ${isDay ? 'bg-stone-200/80 border-stone-300 text-stone-700' : 'bg-stone-900/80 border-stone-800 text-stone-300'}`}>
                 Checking Hole #{selectedHole + 1}
               </span>
             ) : (
-              <span className="text-stone-500 text-sm font-medium bg-stone-900/50 px-4 py-1.5 rounded-full border border-stone-800/50">
-                {gameState.possibleHoles} possibilities remaining
+              <span className={`text-sm font-medium px-4 py-1.5 rounded-full border ${isDay ? 'bg-white/60 border-stone-200 text-stone-600' : 'bg-stone-900/50 border-stone-800/50 text-stone-500'}`}>
+                {gameState.possibleHoles.length} possibilities remaining
               </span>
             )}
           </div>
@@ -375,11 +458,11 @@ const App: React.FC = () => {
                 !isReplayMode ? (
                   <button onClick={startReplay} className="flex-1 bg-amber-600 hover:bg-amber-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"><Play className="w-5 h-5 fill-current" /> Watch Replay</button>
                 ) : (
-                  <div className="flex-1 flex items-center justify-between bg-stone-900 border border-stone-800 text-white rounded-2xl px-2 shadow-xl">
-                    <button onClick={toggleAutoReplay} className="p-3 hover:bg-stone-800 rounded-xl text-amber-500 transition-colors">{isPlayingReplay ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}</button>
+                  <div className={`flex-1 flex items-center justify-between border rounded-2xl px-2 shadow-xl ${isDay ? 'bg-white border-stone-200 text-stone-800' : 'bg-stone-900 border-stone-800 text-white'}`}>
+                    <button onClick={toggleAutoReplay} className={`p-3 rounded-xl text-amber-500 transition-colors ${isDay ? 'hover:bg-stone-100' : 'hover:bg-stone-800'}`}>{isPlayingReplay ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}</button>
                     <div className="flex gap-1">
-                      <button onClick={prevReplayDay} disabled={replayIndex === 0} className="p-3 hover:bg-stone-800 rounded-xl disabled:opacity-30 transition-colors"><ChevronLeft className="w-5 h-5" /></button>
-                      <button onClick={nextReplayDay} disabled={replayIndex === gameState.history.length - 1} className="p-3 hover:bg-stone-800 rounded-xl disabled:opacity-30 transition-colors"><ChevronRight className="w-5 h-5" /></button>
+                      <button onClick={prevReplayDay} disabled={replayIndex === 0} className={`p-3 rounded-xl disabled:opacity-30 transition-colors ${isDay ? 'hover:bg-stone-100' : 'hover:bg-stone-800'}`}><ChevronLeft className="w-5 h-5" /></button>
+                      <button onClick={nextReplayDay} disabled={replayIndex === gameState.history.length - 1} className={`p-3 rounded-xl disabled:opacity-30 transition-colors ${isDay ? 'hover:bg-stone-100' : 'hover:bg-stone-800'}`}><ChevronRight className="w-5 h-5" /></button>
                     </div>
                     <button onClick={closeReplay} className="p-3 hover:bg-red-900/40 text-red-400 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
                   </div>
@@ -387,21 +470,20 @@ const App: React.FC = () => {
               )
               }
               {(!isReplayMode || gameState.status !== GameStatus.WON) && (
-                <button onClick={() => resetGame()} className="flex-1 bg-stone-900 border border-stone-800 text-stone-300 py-4 rounded-2xl font-bold shadow-lg hover:bg-stone-800 active:scale-[0.98] transition-all">New Game</button>
+                <button onClick={() => resetGame()} className={`flex-1 border py-4 rounded-2xl font-bold shadow-lg active:scale-[0.98] transition-all ${isDay ? 'bg-white border-stone-200 text-stone-600 hover:bg-stone-50' : 'bg-stone-900 border-stone-800 text-stone-300 hover:bg-stone-800'}`}>New Game</button>
               )}
             </div>
           )}
         </div>
       </main >
 
-      {/* 3. Bottom Navigation Bar - Landscape: Move to Side? Or Keep? Keep for now but ensure it doesn't take too much vertical space. */}
-      {/* For landscape, maybe we just hide the Label and make it smaller? */}
-      <div className="flex-none bg-stone-900 border-t border-stone-800 px-6 py-2 pb-4 safe-area-bottom z-20 flex justify-center shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.2)] landscape:py-1 landscape:pb-1">
+      {/* 3. Bottom Navigation Bar */}
+      <div className={`flex-none border-t px-6 py-2 pb-4 safe-area-bottom z-20 flex justify-center landscape:py-1 landscape:pb-1 relative ${bottomNavClass}`}>
         <button
           onClick={() => setActiveTab(activeTab === 'log' ? null : 'log')}
-          className={`flex flex-col items-center justify-center gap-1.5 py-2 rounded-2xl transition-all duration-300 px-6 ${activeTab === 'log' ? 'bg-stone-800 text-stone-200 -translate-y-1 shadow-md' : 'text-stone-500 hover:text-stone-400'} landscape:flex-row landscape:py-1`}
+          className={`flex flex-col items-center justify-center gap-1.5 py-2 rounded-2xl transition-all duration-300 px-6 ${activeTab === 'log' ? `${navButtonActive} -translate-y-1` : `text-stone-500 hover:text-stone-400`} landscape:flex-row landscape:py-1`}
         >
-          <ClipboardList className={`w-6 h-6 ${activeTab === 'log' ? 'stroke-2' : 'stroke-1.5'}`} />
+          <ClipboardList className={`w-6 h-6 ${activeTab === 'log' ? 'stroke-2' : 'stroke-1.5'} `} />
           <span className="text-[10px] font-bold uppercase tracking-wider landscape:text-xs">Log</span>
         </button>
       </div>
@@ -435,48 +517,49 @@ const App: React.FC = () => {
       }
 
       {/* Rules Modal Overlay */}
+      {/* Rules Modal Overlay */}
       {
         showRules && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-opacity duration-300">
-            <div className="bg-stone-900 border border-stone-800 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-              <div className="bg-orange-700 p-1 text-white relative">
+            <div className={`border w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 ${isDay ? 'bg-white border-stone-200' : 'bg-stone-900 border-stone-800'}`}>
+              <div className={`p-1 text-white relative transition-colors ${isDay ? 'bg-sky-500' : 'bg-orange-700'}`}>
                 <button
                   onClick={() => setShowRules(false)}
-                  className="absolute top-1 right-4 p-1 hover:bg-orange-600 rounded-full transition-colors"
+                  className={`absolute top-1 right-4 p-1 rounded-full transition-colors ${isDay ? 'hover:bg-sky-400' : 'hover:bg-orange-600'}`}
                 >
                   <X size={24} />
                 </button>
                 <div className="flex items-center gap-1 mb-1">
-                  <Rabbit size={32} className="text-orange-200" />
+                  <Rabbit size={32} className={isDay ? 'text-sky-100' : 'text-orange-200'} />
                   <h2 className="text-3xl bangers tracking-wide">The Great Chase</h2>
                 </div>
-                <p className="text-orange-100 font-medium">Can you outsmart the cheeky rabbit?</p>
+                <p className={`font-medium ${isDay ? 'text-sky-100' : 'text-orange-100'}`}>Can you outsmart the cheeky rabbit?</p>
               </div>
 
               <div className="p-1 space-y-1">
                 <div className="space-y-2">
                   <div className="flex gap-2">
-                    <div className="flex-shrink-0 w-10 h-10 bg-stone-800 rounded-full flex items-center justify-center text-orange-500">
+                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${isDay ? 'bg-stone-100 text-sky-600' : 'bg-stone-800 text-orange-500'}`}>
                       <MapPin size={20} />
                     </div>
                     <div>
-                      <h3 className="font-bold text-stone-200">The Hideout</h3>
-                      <p className="text-sm text-stone-400">The rabbit is hiding in one of the holes below. Pick one to inspect each morning.</p>
+                      <h3 className={`font-bold ${isDay ? 'text-stone-800' : 'text-stone-200'}`}>The Hideout</h3>
+                      <p className={`text-sm ${isDay ? 'text-stone-600' : 'text-stone-400'}`}>The rabbit is hiding in one of the holes below. Pick one to inspect each morning.</p>
                     </div>
                   </div>
 
                   <div className="flex gap-2">
-                    <div className="flex-shrink-0 w-10 h-10 bg-stone-800 rounded-full flex items-center justify-center text-orange-500">
+                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${isDay ? 'bg-stone-100 text-sky-600' : 'bg-stone-800 text-orange-500'}`}>
                       <Repeat size={20} />
                     </div>
                     <div>
-                      <h3 className="font-bold text-stone-200">The Rabbit's Move</h3>
-                      <p className="text-sm text-stone-400">If you miss, the rabbit hops to an <span className="font-bold underline text-stone-300">adjacent</span> hole overnight. It never stays still!</p>
+                      <h3 className={`font-bold ${isDay ? 'text-stone-800' : 'text-stone-200'}`}>The Rabbit's Move</h3>
+                      <p className={`text-sm ${isDay ? 'text-stone-600' : 'text-stone-400'}`}>If you miss, the rabbit hops to an <span className={`font-bold underline ${isDay ? 'text-stone-700' : 'text-stone-300'}`}>adjacent</span> hole overnight. It never stays still!</p>
                     </div>
                   </div>
 
-                  <div className="bg-stone-800 p-2 rounded-xl border border-stone-700">
-                    <p className="text-xs text-stone-400 leading-relaxed italic">
+                  <div className={`p-2 rounded-xl border ${isDay ? 'bg-stone-50 border-stone-200' : 'bg-stone-800 border-stone-700'}`}>
+                    <p className={`text-xs leading-relaxed italic ${isDay ? 'text-stone-500' : 'text-stone-400'}`}>
                       "Finding me takes logic, Fox! Hint: The holes follow a numerical sequence. If I'm in hole 3 today, I'll be in 2 or 4 tomorrow."
                     </p>
                   </div>
@@ -485,7 +568,7 @@ const App: React.FC = () => {
                 <div className="landscape:w-40 landscape:flex landscape:flex-col landscape:gap-2">
                   <button
                     onClick={() => setShowRules(false)}
-                    className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 rounded-2xl shadow-lg shadow-orange-600/20 flex items-center justify-center gap-2 transition-transform active:scale-95"
+                    className={`w-full text-white font-bold py-2 rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 ${isDay ? 'bg-sky-500 hover:bg-sky-600 shadow-sky-500/20' : 'bg-orange-600 hover:bg-orange-700 shadow-orange-600/20'}`}
                   >
                     <Play size={5} fill="currentColor" />
                     Start Hunting
