@@ -3,7 +3,7 @@ import { Hole } from './components/Hole';
 import { Log } from './components/Log';
 
 import { GameState, GameStatus, HistoryEntry } from './types';
-import { RefreshCw, Trophy, Info, Minus, Plus, X, Play, SkipBack, SkipForward, ChevronLeft, ChevronRight, Pause, ClipboardList, Smartphone, Rabbit, MapPin, Repeat } from 'lucide-react';
+import { RefreshCw, Trophy, Info, Minus, Plus, X, Play, SkipBack, SkipForward, ChevronLeft, ChevronRight, Pause, ClipboardList, Smartphone, Rabbit, MapPin, Repeat, Bug } from 'lucide-react';
 const App: React.FC = () => {
   const initialHoleCount = 5;
 
@@ -22,6 +22,9 @@ const App: React.FC = () => {
   const [selectedHole, setSelectedHole] = useState<number | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showRules, setShowRules] = useState(true);
+
+  // Debug Mode
+  const [isDebugMode, setIsDebugMode] = useState(false);
 
   // Replay State
   const [replayIndex, setReplayIndex] = useState<number | null>(null);
@@ -215,6 +218,14 @@ const App: React.FC = () => {
             <button onClick={() => changeHoleCount(1)} disabled={gameState.holeCount >= 10 || isProcessing || isReplayMode} className="w-6 h-6 flex items-center justify-center bg-stone-700 rounded text-stone-400 disabled:opacity-30 hover:bg-stone-600 transition-colors"><Plus className="w-3 h-3" /></button>
           </div>
 
+          <button
+            onClick={() => setIsDebugMode(!isDebugMode)}
+            className={`p-2 rounded-full transition-all duration-300 ${isDebugMode ? 'bg-indigo-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.5)]' : 'text-stone-500 hover:text-stone-300 bg-stone-800 hover:bg-stone-700'}`}
+            title={isDebugMode ? "Debug Mode Active" : "Enable Debug Mode"}
+          >
+            <Bug className="w-5 h-5" />
+          </button>
+
           <button onClick={() => setShowRules(true)} className="p-2 text-stone-500 hover:text-stone-300 bg-stone-800 rounded-full hover:bg-stone-700 transition-colors">
             <Info className="w-5 h-5" />
           </button>
@@ -279,9 +290,50 @@ const App: React.FC = () => {
                   const isChecked = displayCheckedPos === i;
                   const isRabbit = isReplayMode ? displayRabbitPos === i : (gameState.status === GameStatus.WON && gameState.lastCheckedIndex === i);
                   const isSelected = (!isReplayMode && selectedHole === i) || (isReplayMode && displayCheckedPos === i);
+
+                  // Debug Mode: Identify if this hole is possible
+                  const isPossible = isDebugMode && !isReplayMode && gameState.possibleHoles.includes(i);
+                  const canJumpLeft = isPossible && i > 0;
+                  const canJumpRight = isPossible && i < gameState.holeCount - 1;
+
                   return (
-                    <div key={i} className="flex-shrink-0 relative">
-                      <Hole index={i} isSelected={isSelected} isChecked={isChecked} isRabbit={isRabbit} gameStatus={gameState.status} onSelect={handleHoleClick} disabled={gameState.status !== GameStatus.PLAYING || isProcessing || isReplayMode} />
+                    <div key={i} className="flex-shrink-0 relative group">
+                      <Hole index={i} isSelected={isSelected} isChecked={isChecked} isRabbit={isRabbit} isPossible={isPossible} gameStatus={gameState.status} onSelect={handleHoleClick} disabled={gameState.status !== GameStatus.PLAYING || isProcessing || isReplayMode} />
+
+                      {/* Jump Indicators (Arrows) - Center to Center Arc */}
+                      {isPossible && (
+                        <>
+                          {/* Left Jump Arrow */}
+                          {canJumpLeft && (
+                            <div className="absolute top-1/2 right-1/2 z-0 pointer-events-none w-[calc(100%+0.5rem)] sm:w-[calc(100%+1rem)] md:w-[calc(100%+1.5rem)] h-12 sm:h-16">
+                              <svg width="100%" height="100%" viewBox="0 0 100 50" preserveAspectRatio="none" className="overflow-visible text-indigo-400 opacity-60">
+                                <defs>
+                                  <marker id="arrowhead-left" markerWidth="6" markerHeight="6" refX="0" refY="3" orient="auto">
+                                    <path d="M0,0 L6,3 L0,6" fill="currentColor" />
+                                  </marker>
+                                </defs>
+                                {/* Path from Right (100,0) to Left (0,0) with downward arc */}
+                                <path d="M 90 10 Q 50 60 5 10" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="4 2" markerEnd="url(#arrowhead-left)" />
+                              </svg>
+                            </div>
+                          )}
+
+                          {/* Right Jump Arrow */}
+                          {canJumpRight && (
+                            <div className="absolute top-1/2 left-1/2 z-0 pointer-events-none w-[calc(100%+0.5rem)] sm:w-[calc(100%+1rem)] md:w-[calc(100%+1.5rem)] h-12 sm:h-16">
+                              <svg width="100%" height="100%" viewBox="0 0 100 50" preserveAspectRatio="none" className="overflow-visible text-indigo-400 opacity-60">
+                                <defs>
+                                  <marker id="arrowhead-right" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto">
+                                    <path d="M0,0 L6,3 L0,6" fill="currentColor" />
+                                  </marker>
+                                </defs>
+                                {/* Path from Left (0,10) to Right (100,10) with downward arc */}
+                                <path d="M 0 20 Q 50 70 95 20" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="4 2" markerEnd="url(#arrowhead-right)" />
+                              </svg>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   );
                 })}
@@ -307,7 +359,7 @@ const App: React.FC = () => {
               </span>
             ) : (
               <span className="text-stone-500 text-sm font-medium bg-stone-900/50 px-4 py-1.5 rounded-full border border-stone-800/50">
-                {currentPossibilities} possibilities remaining
+                {gameState.possibleHoles} possibilities remaining
               </span>
             )}
           </div>

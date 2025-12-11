@@ -7,6 +7,7 @@ interface HoleProps {
   isSelected: boolean;
   isChecked: boolean;
   isRabbit: boolean;
+  isPossible?: boolean;
   gameStatus: GameStatus;
   onSelect: (index: number) => void;
   disabled: boolean;
@@ -17,6 +18,7 @@ export const Hole: React.FC<HoleProps> = ({
   isSelected,
   isChecked,
   isRabbit,
+  isPossible,
   gameStatus,
   onSelect,
   disabled
@@ -56,6 +58,8 @@ export const Hole: React.FC<HoleProps> = ({
     stateClasses = "bg-stone-900 border-stone-800 opacity-60"; // Darker, cleaner empty state
     icon = <Footprints className="text-stone-600 w-5 h-5 sm:w-8 sm:h-8 rotate-12 opacity-50" />;
   }
+  // isPossible logic moved to separate element outside button loop or absolute positioned overlay
+
 
   return (
     <button
@@ -73,6 +77,13 @@ export const Hole: React.FC<HoleProps> = ({
       {!isChecked && !isSelected && !(gameStatus === GameStatus.WON && isRabbit) && (
         <div className="absolute inset-2 bg-black opacity-30 rounded-full blur-sm pointer-events-none" />
       )}
+
+      {/* Debug Mode: Faded "Ghost" Rabbit below the hole */}
+      {/* {isPossible && (
+        <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 pointer-events-none animate-pulse opacity-50">
+          <Rabbit className="w-8 h-8 text-indigo-400 opacity-60" />
+        </div>
+      )} */}
     </button>
   );
 };
