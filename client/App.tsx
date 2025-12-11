@@ -133,11 +133,11 @@ const App: React.FC = () => {
     // MISS LOGIC - Trigger Day/Night Cycle
     // Phase 1: Sunset (Day ending)
     setPhase('sunset');
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Darkening
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Darkening (Slower)
 
     // Phase 2: Night (Rabbit moves)
     setPhase('night');
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Total darkness, calculation happens
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Rabbit moving (Slower)
 
     const afterCheckCandidates = possibleHoles.filter(h => h !== targetHole);
     const nextDayCandidatesSet = new Set<number>();
@@ -159,7 +159,7 @@ const App: React.FC = () => {
 
     // Phase 3: Sunrise
     setPhase('sunrise');
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Brightening
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Brightening (Slower)
 
     // Phase 4: Day (Ready for input)
     setPhase('day');
@@ -381,7 +381,7 @@ const App: React.FC = () => {
 
                   return (
                     <div key={i} className="flex-shrink-0 relative group">
-                      <Hole index={i} isSelected={isSelected} isChecked={isChecked} isRabbit={isRabbit} isPossible={isPossible} gameStatus={gameState.status} onSelect={handleHoleClick} disabled={gameState.status !== GameStatus.PLAYING || isProcessing || isReplayMode} />
+                      <Hole index={i} isSelected={isSelected} isChecked={isChecked} isRabbit={isRabbit} isPossible={isPossible} gameStatus={gameState.status} onSelect={handleHoleClick} disabled={gameState.status !== GameStatus.PLAYING || isProcessing || isReplayMode} hideFootprints={phase === 'night'} />
 
                       {/* Jump Indicators (Arrows) - Center to Center Arc */}
                       {isPossible && (
@@ -436,14 +436,36 @@ const App: React.FC = () => {
                   <Trophy className="w-4 h-4" /> Caught at Hole #{selectedHole! + 1}!
                 </span>
               )
-            ) : selectedHole !== null ? (
-              <span className={`font-bold animate-pulse backdrop-blur px-5 py-1.5 rounded-full shadow-sm border ${isDay ? 'bg-stone-200/80 border-stone-300 text-stone-700' : 'bg-stone-900/80 border-stone-800 text-stone-300'}`}>
-                Checking Hole #{selectedHole + 1}
-              </span>
             ) : (
-              <span className={`text-sm font-medium px-4 py-1.5 rounded-full border ${isDay ? 'bg-white/60 border-stone-200 text-stone-600' : 'bg-stone-900/50 border-stone-800/50 text-stone-500'}`}>
-                {gameState.possibleHoles.length} possibilities remaining
-              </span>
+              // Phase-based Narrative Feedback
+              (() => {
+                if (phase === 'sunset') return (
+                  <span className={`font-bold animate-in fade-in duration-500 px-5 py-1.5 rounded-full shadow-sm border ${isDay ? 'bg-orange-100/80 border-orange-200 text-orange-700' : 'bg-orange-900/40 border-orange-800 text-orange-200'}`}>
+                    No rabbit here...
+                  </span>
+                );
+                if (phase === 'night') return (
+                  <span className={`font-bold animate-pulse px-5 py-1.5 rounded-full shadow-sm border ${isDay ? 'bg-indigo-100/80 border-indigo-200 text-indigo-700' : 'bg-indigo-900/40 border-indigo-800 text-indigo-200'}`}>
+                    Rabbit is moving to a nearby hole...
+                  </span>
+                );
+                if (phase === 'sunrise') return (
+                  <span className={`font-bold animate-in fade-in duration-500 px-5 py-1.5 rounded-full shadow-sm border ${isDay ? 'bg-amber-100/80 border-amber-200 text-amber-700' : 'bg-amber-900/40 border-amber-800 text-amber-200'}`}>
+                    Sun is rising... Good luck!
+                  </span>
+                );
+                // Default: Day / Idle
+                if (selectedHole !== null) return (
+                  <span className={`font-bold animate-pulse backdrop-blur px-5 py-1.5 rounded-full shadow-sm border ${isDay ? 'bg-stone-200/80 border-stone-300 text-stone-700' : 'bg-stone-900/80 border-stone-800 text-stone-300'}`}>
+                    Checking Hole #{selectedHole + 1}
+                  </span>
+                );
+                return (
+                  <span className={`text-sm font-medium px-4 py-1.5 rounded-full border ${isDay ? 'bg-white/60 border-stone-200 text-stone-600' : 'bg-stone-900/50 border-stone-800/50 text-stone-500'}`}>
+                    {gameState.possibleHoles.length} possibilities remaining
+                  </span>
+                );
+              })()
             )}
           </div>
         </div>
