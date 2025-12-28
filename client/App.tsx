@@ -233,7 +233,7 @@ const App: React.FC = () => {
   const currentPossibilities = isReplayMode ? -1 : gameState.possibleHoles.length;
   const foxPosition = isReplayMode
     ? displayCheckedPos
-    : (selectedHole !== null ? selectedHole : (foxHole !== null ? foxHole : gameState.lastCheckedIndex));
+    : (selectedHole !== null ? selectedHole : (gameState.lastCheckedIndex !== null ? gameState.lastCheckedIndex : foxHole));
   const showFox = (foxPosition !== null);
 
   // --- Visual Helpers for Sky ---
