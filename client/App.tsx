@@ -141,11 +141,14 @@ const App: React.FC = () => {
     setPhase('sunset');
     await new Promise(resolve => setTimeout(resolve, 2000)); // Darkening (Slower)
 
+    // UPDATE STATE: Remove checked hole from possibilities (Visual: Ghost rabbit disappears)
+    const afterCheckCandidates = possibleHoles.filter(h => h !== targetHole);
+    setGameState(prev => ({ ...prev, possibleHoles: afterCheckCandidates }));
+
     // Phase 2: Night (Rabbit moves)
     setPhase('night');
     await new Promise(resolve => setTimeout(resolve, 2000)); // Rabbit moving (Slower)
 
-    const afterCheckCandidates = possibleHoles.filter(h => h !== targetHole);
     const nextDayCandidatesSet = new Set<number>();
     afterCheckCandidates.forEach(pos => {
       if (pos - 1 >= 0) nextDayCandidatesSet.add(pos - 1);
@@ -388,8 +391,12 @@ const App: React.FC = () => {
 
                   // Debug Mode: Identify if this hole is possible
                   const isPossible = isDebugMode && !isReplayMode && gameState.possibleHoles.includes(i);
-                  const canJumpLeft = isPossible && i > 0;
-                  const canJumpRight = isPossible && i < gameState.holeCount - 1;
+
+                  // Arrows only show during NIGHT phase (Rabbit moving)
+                  const showArrows = isDebugMode && !isReplayMode && phase === 'night' && isPossible;
+
+                  const canJumpLeft = showArrows && i > 0;
+                  const canJumpRight = showArrows && i < gameState.holeCount - 1;
 
                   return (
                     <div key={i} className="flex-shrink-0 relative group">

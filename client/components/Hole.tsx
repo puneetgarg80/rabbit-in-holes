@@ -82,12 +82,11 @@ export const Hole: React.FC<HoleProps> = ({
         <div className="absolute inset-2 bg-black opacity-30 rounded-full blur-sm pointer-events-none" />
       )}
 
-      {/* Debug Mode: Faded "Ghost" Rabbit below the hole */}
-      {/* {isPossible && (
+      {isPossible && (
         <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 pointer-events-none animate-pulse opacity-50">
           <Rabbit className="w-8 h-8 text-indigo-400 opacity-60" />
         </div>
-      )} */}
+      )}
     </button>
   );
 };
