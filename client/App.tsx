@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Hole } from './components/Hole';
 
 import { GameState, GameStatus, HistoryEntry } from './types';
-import { RefreshCw, Trophy, Info, Minus, Plus, X, Play, SkipBack, SkipForward, ChevronLeft, ChevronRight, Pause, Smartphone, Rabbit, MapPin, Repeat, Bug, Sun, Moon } from 'lucide-react';
+import { RefreshCw, Trophy, Info, Minus, Plus, X, Play, SkipBack, SkipForward, ChevronLeft, ChevronRight, Pause, Smartphone, Rabbit, MapPin, Repeat, Bug, Sun, Moon, Undo2 } from 'lucide-react';
 const App: React.FC = () => {
   const initialHoleCount = 4;
 
@@ -173,6 +173,31 @@ const App: React.FC = () => {
 
   }, [selectedHole, gameState, isProcessing]);
 
+  const undoLastMove = useCallback(() => {
+    if (gameState.history.length === 0 || isProcessing) return;
+
+    setGameState(prev => {
+      const newHistory = prev.history.slice(0, -1);
+      const newCandidatesHistory = prev.candidatesHistory.slice(0, -1);
+      const previousPossibleHoles = newCandidatesHistory[newCandidatesHistory.length - 1];
+
+      return {
+        ...prev,
+        day: prev.day - 1,
+        history: newHistory,
+        possibleHoles: previousPossibleHoles,
+        candidatesHistory: newCandidatesHistory,
+        status: GameStatus.PLAYING,
+        lastCheckedIndex: newHistory.length > 0 ? newHistory[newHistory.length - 1].checkedHoleIndex : null,
+        rabbitPath: []
+      };
+    });
+
+    setSelectedHole(null);
+    setFoxHole(null);
+    setPhase('day');
+  }, [gameState.history, isProcessing]);
+
   const handleHoleClick = (index: number) => {
     // Single tap -> Inspect immediately
     handleCheckHole(index);
@@ -324,7 +349,10 @@ const App: React.FC = () => {
               <button onClick={() => changeHoleCount(1)} disabled={gameState.holeCount >= 10 || isProcessing || isReplayMode} className={`p-1.5 rounded-lg disabled:opacity-30 transition-colors ${isDay ? 'bg-stone-200 text-stone-600 hover:bg-stone-300' : 'bg-stone-800 text-stone-400 hover:bg-stone-700'}`}><Plus className="w-4 h-4" /></button>
             </div>
           </div>
-          <button onClick={() => resetGame()} disabled={isProcessing} className={`p-2 rounded-xl shadow-lg border hover:bg-stone-800 active:scale-95 disabled:opacity-50 transition-colors ${isDay ? 'bg-white/60 border-stone-200 text-stone-600 hover:bg-stone-50' : 'bg-stone-900/80 backdrop-blur text-stone-500 border-stone-800 hover:text-stone-300'}`}><RefreshCw className="w-5 h-5" /></button>
+          <div className="flex items-center gap-2">
+            <button onClick={undoLastMove} disabled={gameState.history.length === 0 || isProcessing || isReplayMode} className={`p-2 rounded-xl shadow-lg border hover:scale-105 active:scale-95 disabled:opacity-30 transition-all ${isDay ? 'bg-white/60 border-stone-200 text-stone-600 hover:bg-stone-50' : 'bg-stone-900 border-stone-800 text-stone-500 hover:text-stone-300'}`} title="Undo Move"><Undo2 className="w-5 h-5" /></button>
+            <button onClick={() => resetGame()} disabled={isProcessing} className={`p-2 rounded-xl shadow-lg border hover:bg-stone-800 active:scale-95 disabled:opacity-50 transition-colors ${isDay ? 'bg-white/60 border-stone-200 text-stone-600 hover:bg-stone-50' : 'bg-stone-900/80 backdrop-blur text-stone-500 border-stone-800 hover:text-stone-300'}`} title="Restart Game"><RefreshCw className="w-5 h-5" /></button>
+          </div>
         </div>
 
         {/* Sidebar Controls (Landscape Only) */}
@@ -346,7 +374,10 @@ const App: React.FC = () => {
           )}
 
           {(!isReplayMode || gameState.status !== GameStatus.WON) && (
-            <button onClick={() => resetGame()} disabled={isProcessing} className={`p-3 rounded-xl shadow-lg border hover:scale-105 active:scale-95 disabled:opacity-50 transition-all ${isDay ? 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50' : 'bg-stone-900 text-stone-500 border-stone-800 hover:bg-stone-800 hover:text-stone-300'}`} title="New Game"><RefreshCw className="w-5 h-5" /></button>
+            <div className="flex flex-col gap-2">
+              <button onClick={undoLastMove} disabled={gameState.history.length === 0 || isProcessing || isReplayMode} className={`p-3 rounded-xl shadow-lg border hover:scale-105 active:scale-95 disabled:opacity-30 transition-all ${isDay ? 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50' : 'bg-stone-900 text-stone-500 border-stone-800 hover:bg-stone-800 hover:text-stone-300'}`} title="Undo Move"><Undo2 className="w-5 h-5" /></button>
+              <button onClick={() => resetGame()} disabled={isProcessing} className={`p-3 rounded-xl shadow-lg border hover:scale-105 active:scale-95 disabled:opacity-30 transition-all ${isDay ? 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50' : 'bg-stone-900 text-stone-500 border-stone-800 hover:bg-stone-800 hover:text-stone-300'}`} title="New Game"><RefreshCw className="w-5 h-5" /></button>
+            </div>
           )}
         </div>
 
@@ -360,7 +391,7 @@ const App: React.FC = () => {
                 {/* Day Counter - Centered above holes */}
                 <div className="absolute -top-20 left-1/2 -translate-x-1/2 whitespace-nowrap z-10">
                   <span className={`text-xs sm:text-sm font-bold uppercase tracking-[0.2em] px-4 py-1.5 rounded-full border shadow-sm ${isDay ? 'bg-white/90 border-stone-200 text-stone-600' : 'bg-stone-900 border-stone-800 text-stone-400'}`}>
-                    {isReplayMode ? `Replay Day ${gameState.day}` : `Day ${gameState.day}`}
+                    {isReplayMode ? `Replay Day ${displayDayNumber}` : `Day ${displayDayNumber}`}
                   </span>
                 </div>
                 {/* Connector Line */}
