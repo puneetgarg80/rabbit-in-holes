@@ -472,11 +472,7 @@ const App: React.FC = () => {
                     Checking Hole #{selectedHole + 1}
                   </span>
                 );
-                return (
-                  <span className={`text-sm font-medium px-4 py-1.5 rounded-full border ${isDay ? 'bg-white/60 border-stone-200 text-stone-600' : 'bg-stone-900/50 border-stone-800/50 text-stone-500'}`}>
-                    {gameState.possibleHoles.length} possibilities remaining
-                  </span>
-                );
+                return null;
               })()
             )}
           </div>
