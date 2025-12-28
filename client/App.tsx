@@ -139,18 +139,18 @@ const App: React.FC = () => {
     // MISS LOGIC - Trigger Day/Night Cycle
     // Phase 1: Sunset (Day ending)
     setPhase('sunset');
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Darkening (Slower)
+    const afterCheckCandidates = possibleHoles.filter(h => h !== targetHole);
+    setGameState(prev => ({ ...prev, possibleHoles: afterCheckCandidates, lastCheckedIndex: null }));
+    await new Promise(resolve => setTimeout(resolve, 3000)); // Darkening (Slower)
 
     // UPDATE STATE: Remove checked hole from possibilities (Visual: Ghost rabbit disappears)
     // AND Close the hole / Remove Fox immediately ("Same Day")
-    const afterCheckCandidates = possibleHoles.filter(h => h !== targetHole);
-    setGameState(prev => ({ ...prev, possibleHoles: afterCheckCandidates, lastCheckedIndex: null }));
     setSelectedHole(null);
     setFoxHole(null);
 
     // Phase 2: Night (Rabbit moves)
     setPhase('night');
-    await new Promise(resolve => setTimeout(resolve, 4000)); // Rabbit moving (Slower)
+    await new Promise(resolve => setTimeout(resolve, 3000)); // Rabbit moving (Slower)
 
     const nextDayCandidatesSet = new Set<number>();
     afterCheckCandidates.forEach(pos => {
