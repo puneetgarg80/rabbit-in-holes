@@ -142,8 +142,11 @@ const App: React.FC = () => {
     await new Promise(resolve => setTimeout(resolve, 2000)); // Darkening (Slower)
 
     // UPDATE STATE: Remove checked hole from possibilities (Visual: Ghost rabbit disappears)
+    // AND Close the hole / Remove Fox immediately ("Same Day")
     const afterCheckCandidates = possibleHoles.filter(h => h !== targetHole);
-    setGameState(prev => ({ ...prev, possibleHoles: afterCheckCandidates }));
+    setGameState(prev => ({ ...prev, possibleHoles: afterCheckCandidates, lastCheckedIndex: null }));
+    setSelectedHole(null);
+    setFoxHole(null);
 
     // Phase 2: Night (Rabbit moves)
     setPhase('night');
@@ -160,11 +163,8 @@ const App: React.FC = () => {
 
     // Update Game State (New Day)
     setGameState(prev => ({
-      ...prev, day: prev.day + 1, history: [...prev.history, newEntry], possibleHoles: nextPossibleHoles, candidatesHistory: [...prev.candidatesHistory, nextPossibleHoles], lastCheckedIndex: targetHole
+      ...prev, day: prev.day + 1, history: [...prev.history, newEntry], possibleHoles: nextPossibleHoles, candidatesHistory: [...prev.candidatesHistory, nextPossibleHoles]
     }));
-
-    // Clear selection so fox stays on last checked position but doesn't look "active"
-    setSelectedHole(null);
 
     // Phase 3: Sunrise
     setPhase('sunrise');
@@ -173,11 +173,6 @@ const App: React.FC = () => {
     // Phase 4: Day (Ready for input)
     setPhase('day');
     setIsProcessing(false);
-
-    // Close the hole for the new day (Visual Reset)
-    // We persist the fox position (where it last checked) but clear the "Checked/Open" state
-    setFoxHole(targetHole);
-    setGameState(prev => ({ ...prev, lastCheckedIndex: null }));
 
   }, [selectedHole, gameState, isProcessing]);
 
