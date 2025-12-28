@@ -288,9 +288,6 @@ const App: React.FC = () => {
       <header className={`flex-none backdrop-blur-md border-b z-10 shadow-sm px-4 h-14 flex items-center justify-between transition-colors duration-1000 ${headerClass}`}>
         <div>
           <h1 className={`text-lg font-bold tracking-tight leading-tight ${isDay ? 'text-stone-800' : 'text-stone-100'}`}>Catch the Rabbit</h1>
-          <p className={`text-[10px] font-medium uppercase tracking-wide ${subTextColor}`}>
-            {isReplayMode ? <span className="text-amber-500">Replay Mode</span> : `Day ${gameState.day} `}
-          </p>
         </div>
         <div className="flex items-center gap-2">
           {/* Hole Controls moved to Header for Landscape */}
@@ -357,9 +354,15 @@ const App: React.FC = () => {
         {/* THE BOARD (Takes up all remaining space, centering content) */}
         <div className="flex-1 flex flex-col justify-center relative min-h-0">
           {/* Holes Container - Scaled to fill width */}
-          <div className="w-full overflow-x-auto scrollbar-hide py-28 landscape:pt-16 landscape:pb-24">
+          <div className="w-full overflow-x-auto scrollbar-hide py-32 landscape:pt-24 landscape:pb-24">
             <div className="flex justify-center min-w-full px-6 landscape:px-12">
               <div className="relative flex gap-2 sm:gap-4 md:gap-6">
+                {/* Day Counter - Centered above holes */}
+                <div className="absolute -top-20 left-1/2 -translate-x-1/2 whitespace-nowrap z-10">
+                  <span className={`text-xs sm:text-sm font-bold uppercase tracking-[0.2em] px-4 py-1.5 rounded-full border shadow-sm ${isDay ? 'bg-white/90 border-stone-200 text-stone-600' : 'bg-stone-900 border-stone-800 text-stone-400'}`}>
+                    {isReplayMode ? `Replay Day ${gameState.day}` : `Day ${gameState.day}`}
+                  </span>
+                </div>
                 {/* Connector Line */}
                 <div className={`absolute top-1/2 left-2 right-2 h-1 -z-10 -translate-y-1/2 rounded-full ${isDay ? 'bg-stone-300' : 'bg-stone-800'}`} />
 
@@ -432,11 +435,7 @@ const App: React.FC = () => {
           {/* Feedback Text - Floating below board */}
           <div className="text-center h-10 flex items-center justify-center w-full px-4 mt-2">
             {gameState.status === GameStatus.WON ? (
-              isReplayMode ? (
-                <span className="text-amber-500 font-bold animate-in fade-in bg-amber-950/30 px-4 py-1.5 rounded-full text-sm border border-amber-900/50 shadow-sm flex items-center gap-2">
-                  <Play className="w-3 h-3 fill-current" /> Replay Day {displayDayNumber}
-                </span>
-              ) : (
+              isReplayMode ? null : (
                 <span className="text-emerald-400 font-bold flex items-center gap-2 animate-bounce bg-emerald-950/40 px-5 py-2 rounded-full border border-emerald-900/50 shadow-sm">
                   <Trophy className="w-4 h-4" /> Caught at Hole #{selectedHole! + 1}!
                 </span>
