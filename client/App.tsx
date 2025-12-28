@@ -188,7 +188,7 @@ const App: React.FC = () => {
         possibleHoles: previousPossibleHoles,
         candidatesHistory: newCandidatesHistory,
         status: GameStatus.PLAYING,
-        lastCheckedIndex: newHistory.length > 0 ? newHistory[newHistory.length - 1].checkedHoleIndex : null,
+        lastCheckedIndex: null,
         rabbitPath: []
       };
     });
