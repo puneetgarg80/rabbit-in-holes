@@ -369,7 +369,7 @@ const App: React.FC = () => {
                 {/* Sliding Fox Cursor */}
                 {showFox && (
                   <div className="absolute -top-12 left-0 z-20 w-10 h-10 sm:w-16 sm:h-16 flex justify-center transition-transform duration-300 ease-out pointer-events-none" style={{ transform: `translateX(calc(${foxPosition} * (100% + ${window.innerWidth >= 768 ? '1.5rem' : (window.innerWidth >= 640 ? '1rem' : '0.5rem')})))` }}>
-                    <div className="text-4xl animate-bounce drop-shadow-md filter">🦊</div>
+                    <div className="text-4xl drop-shadow-md filter">🦊</div>
                   </div>
                 )}
 
@@ -436,7 +436,7 @@ const App: React.FC = () => {
           <div className="text-center h-10 flex items-center justify-center w-full px-4 mt-2">
             {gameState.status === GameStatus.WON ? (
               isReplayMode ? null : (
-                <span className="text-emerald-400 font-bold flex items-center gap-2 animate-bounce bg-emerald-950/40 px-5 py-2 rounded-full border border-emerald-900/50 shadow-sm">
+                <span className="text-emerald-400 font-bold flex items-center gap-2 bg-emerald-950/40 px-5 py-2 rounded-full border border-emerald-900/50 shadow-sm">
                   <Trophy className="w-4 h-4" /> Caught at Hole #{selectedHole! + 1}!
                 </span>
               )
@@ -451,7 +451,7 @@ const App: React.FC = () => {
                   </span>
                 );
                 if (phase === 'night') return (
-                  <span className={`${commonClasses} animate-pulse`}>
+                  <span className={`${commonClasses}`}>
                     Rabbit is moving to a nearby hole...
                   </span>
                 );
@@ -462,7 +462,7 @@ const App: React.FC = () => {
                 );
                 // Default: Day / Idle
                 if (selectedHole !== null) return (
-                  <span className={`${commonClasses} animate-pulse backdrop-blur`}>
+                  <span className={`${commonClasses} backdrop-blur`}>
                     Checking Hole #{selectedHole + 1}
                   </span>
                 );

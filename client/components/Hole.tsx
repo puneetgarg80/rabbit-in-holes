@@ -83,7 +83,7 @@ export const Hole: React.FC<HoleProps> = ({
       )}
 
       {isPossible && (
-        <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 pointer-events-none animate-pulse opacity-50">
+        <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 pointer-events-none opacity-50">
           <Rabbit className="w-8 h-8 text-indigo-400 opacity-60" />
         </div>
       )}
