@@ -22,6 +22,11 @@ const App: React.FC = () => {
   const [selectedHole, setSelectedHole] = useState<number | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showRules, setShowRules] = useState(true);
+  const [isClosingRules, setIsClosingRules] = useState(false);
+  const [rulesModalStyle, setRulesModalStyle] = useState<React.CSSProperties>({});
+
+  const infoButtonRef = useRef<HTMLButtonElement>(null);
+  const rulesModalRef = useRef<HTMLDivElement>(null);
 
   // Debug Mode
   const [isDebugMode, setIsDebugMode] = useState(false);
@@ -307,7 +312,7 @@ const App: React.FC = () => {
             <Bug className="w-5 h-5" />
           </button>
 
-          <button onClick={() => setShowRules(true)} className={`p-2 rounded-full transition-colors ${isDay ? 'text-stone-400 hover:text-stone-600 bg-stone-200 hover:bg-stone-300' : 'text-stone-500 hover:text-stone-300 bg-stone-800 hover:bg-stone-700'}`}>
+          <button ref={infoButtonRef} onClick={() => setShowRules(true)} className={`p-2 rounded-full transition-colors ${isDay ? 'text-stone-400 hover:text-stone-600 bg-stone-200 hover:bg-stone-300' : 'text-stone-500 hover:text-stone-300 bg-stone-800 hover:bg-stone-700'}`}>
             <Info className="w-5 h-5" />
           </button>
         </div>
@@ -539,11 +544,14 @@ const App: React.FC = () => {
       }
 
       {/* Rules Modal Overlay */}
-      {/* Rules Modal Overlay */}
       {
-        showRules && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-opacity duration-300">
-            <div className={`border w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 ${isDay ? 'bg-white border-stone-200' : 'bg-stone-900 border-stone-800'}`}>
+        (showRules || isClosingRules) && (
+          <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-opacity duration-500 ${isClosingRules ? 'opacity-0' : 'opacity-100'}`}>
+            <div
+              ref={rulesModalRef}
+              style={rulesModalStyle}
+              className={`border w-full max-w-md rounded-3xl shadow-2xl overflow-hidden transition-all duration-700 ease-in-out ${!isClosingRules ? 'animate-in fade-in zoom-in duration-300' : ''} ${isDay ? 'bg-white border-stone-200' : 'bg-stone-900 border-stone-800'}`}
+            >
               <div className={`p-1 text-white relative transition-colors ${isDay ? 'bg-sky-500' : 'bg-orange-700'}`}>
                 <button
                   onClick={() => setShowRules(false)}
@@ -589,7 +597,37 @@ const App: React.FC = () => {
 
                 <div className="landscape:w-40 landscape:flex landscape:flex-col landscape:gap-2">
                   <button
-                    onClick={() => setShowRules(false)}
+                    onClick={() => {
+                      if (!rulesModalRef.current || !infoButtonRef.current) {
+                        setShowRules(false);
+                        return;
+                      }
+
+                      const modalRect = rulesModalRef.current.getBoundingClientRect();
+                      const buttonRect = infoButtonRef.current.getBoundingClientRect();
+
+                      // Calculate center points
+                      const modalCenterX = modalRect.left + modalRect.width / 2;
+                      const modalCenterY = modalRect.top + modalRect.height / 2;
+                      const buttonCenterX = buttonRect.left + buttonRect.width / 2;
+                      const buttonCenterY = buttonRect.top + buttonRect.height / 2;
+
+                      const translateX = buttonCenterX - modalCenterX;
+                      const translateY = buttonCenterY - modalCenterY;
+                      const scale = 0.1;
+
+                      setRulesModalStyle({
+                        transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
+                        opacity: 0,
+                      });
+                      setIsClosingRules(true);
+                      setShowRules(false);
+
+                      setTimeout(() => {
+                        setIsClosingRules(false);
+                        setRulesModalStyle({});
+                      }, 700);
+                    }}
                     className={`w-full text-white font-bold py-2 rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 ${isDay ? 'bg-sky-500 hover:bg-sky-600 shadow-sky-500/20' : 'bg-orange-600 hover:bg-orange-700 shadow-orange-600/20'}`}
                   >
                     <Play size={5} fill="currentColor" />
