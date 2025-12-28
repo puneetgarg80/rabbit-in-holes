@@ -5,7 +5,7 @@ import { Log } from './components/Log';
 import { GameState, GameStatus, HistoryEntry } from './types';
 import { RefreshCw, Trophy, Info, Minus, Plus, X, Play, SkipBack, SkipForward, ChevronLeft, ChevronRight, Pause, ClipboardList, Smartphone, Rabbit, MapPin, Repeat, Bug, Sun, Moon } from 'lucide-react';
 const App: React.FC = () => {
-  const initialHoleCount = 5;
+  const initialHoleCount = 4;
 
   // --- Game State ---
   const [gameState, setGameState] = useState<GameState>({
