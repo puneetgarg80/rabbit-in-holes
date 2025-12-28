@@ -361,7 +361,7 @@ const App: React.FC = () => {
         {/* THE BOARD (Takes up all remaining space, centering content) */}
         <div className="flex-1 flex flex-col justify-center relative min-h-0">
           {/* Holes Container - Scaled to fill width */}
-          <div className="w-full overflow-x-auto scrollbar-hide py-20 landscape:pt-16 landscape:pb-8">
+          <div className="w-full overflow-x-auto scrollbar-hide py-28 landscape:pt-16 landscape:pb-24">
             <div className="flex justify-center min-w-full px-6 landscape:px-12">
               <div className="relative flex gap-2 sm:gap-4 md:gap-6">
                 {/* Connector Line */}
