@@ -1,9 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Hole } from './components/Hole';
-import { Log } from './components/Log';
 
 import { GameState, GameStatus, HistoryEntry } from './types';
-import { RefreshCw, Trophy, Info, Minus, Plus, X, Play, SkipBack, SkipForward, ChevronLeft, ChevronRight, Pause, ClipboardList, Smartphone, Rabbit, MapPin, Repeat, Bug, Sun, Moon } from 'lucide-react';
+import { RefreshCw, Trophy, Info, Minus, Plus, X, Play, SkipBack, SkipForward, ChevronLeft, ChevronRight, Pause, Smartphone, Rabbit, MapPin, Repeat, Bug, Sun, Moon } from 'lucide-react';
 const App: React.FC = () => {
   const initialHoleCount = 4;
 
@@ -40,8 +39,6 @@ const App: React.FC = () => {
   const [isPlayingReplay, setIsPlayingReplay] = useState(false);
   const replayTimerRef = useRef<number | null>(null);
 
-  // UI State for Bottom Sheet
-  const [activeTab, setActiveTab] = useState<'log' | null>(null);
 
   // Orientation State
   const [isLandscape, setIsLandscape] = useState(true); // Default to true to avoid flash, check on mount
@@ -141,7 +138,7 @@ const App: React.FC = () => {
     setPhase('sunset');
     const afterCheckCandidates = possibleHoles.filter(h => h !== targetHole);
     setGameState(prev => ({ ...prev, possibleHoles: afterCheckCandidates, lastCheckedIndex: null }));
-    await new Promise(resolve => setTimeout(resolve, 3000)); // Darkening (Slower)
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Darkening (Slower)
 
     // UPDATE STATE: Remove checked hole from possibilities (Visual: Ghost rabbit disappears)
     // AND Close the hole / Remove Fox immediately ("Same Day")
@@ -150,7 +147,7 @@ const App: React.FC = () => {
 
     // Phase 2: Night (Rabbit moves)
     setPhase('night');
-    await new Promise(resolve => setTimeout(resolve, 3000)); // Rabbit moving (Slower)
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Rabbit moving (Slower)
 
     const nextDayCandidatesSet = new Set<number>();
     afterCheckCandidates.forEach(pos => {
@@ -191,7 +188,6 @@ const App: React.FC = () => {
     setFoxHole(null);
     setReplayIndex(null);
     setIsPlayingReplay(false);
-    setActiveTab(null);
     if (replayTimerRef.current) clearInterval(replayTimerRef.current);
   };
 
@@ -213,7 +209,7 @@ const App: React.FC = () => {
           if (prev < gameState.history.length - 1) return prev + 1;
           else { setIsPlayingReplay(false); return prev; }
         });
-      }, 1500);
+      }, 2000);
     }
     return () => { if (replayTimerRef.current) clearInterval(replayTimerRef.current); };
   }, [isPlayingReplay, gameState.history.length]);
@@ -506,44 +502,6 @@ const App: React.FC = () => {
         </div>
       </main >
 
-      {/* 3. Bottom Navigation Bar */}
-      <div className={`flex-none border-t px-6 py-2 pb-4 safe-area-bottom z-20 flex justify-center landscape:py-1 landscape:pb-1 relative ${bottomNavClass}`}>
-        <button
-          onClick={() => setActiveTab(activeTab === 'log' ? null : 'log')}
-          className={`flex flex-col items-center justify-center gap-1.5 py-2 rounded-2xl transition-all duration-300 px-6 ${activeTab === 'log' ? `${navButtonActive} -translate-y-1` : `text-stone-500 hover:text-stone-400`} landscape:flex-row landscape:py-1`}
-        >
-          <ClipboardList className={`w-6 h-6 ${activeTab === 'log' ? 'stroke-2' : 'stroke-1.5'} `} />
-          <span className="text-[10px] font-bold uppercase tracking-wider landscape:text-xs">Log</span>
-        </button>
-      </div>
-
-      {/* 4. Bottom Sheet Overlay (Drawer) */}
-      {
-        activeTab && (
-          <>
-            {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-30 animate-in fade-in duration-300" onClick={() => setActiveTab(null)} />
-
-            {/* Sheet Content */}
-            <div className="absolute bottom-0 left-0 right-0 z-40 bg-stone-900 border-t border-stone-800 rounded-t-[2rem] shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom duration-300 flex flex-col h-[55vh] max-h-[600px] landscape:h-[80vh] landscape:max-w-md landscape:left-auto landscape:right-0 landscape:rounded-l-[2rem] landscape:rounded-t-none landscape:border-l landscape:border-t-0">
-              {/* Handle Bar (Hidden in side sheet mode) */}
-              <div className="w-full flex justify-center pt-3 pb-1 landscape:hidden" onClick={() => setActiveTab(null)}>
-                <div className="w-12 h-1.5 bg-stone-700 rounded-full" />
-              </div>
-
-              <div className="flex-none px-6 py-3 border-b border-stone-800 flex items-center justify-between">
-                <h3 className="text-lg font-bold text-stone-200 flex items-center gap-2">
-                  <ClipboardList className="w-5 h-5 text-stone-500" /> Investigation Log
-                </h3>
-                <button onClick={() => setActiveTab(null)} className="p-2 bg-stone-800 rounded-full hover:bg-stone-700 transition-colors text-stone-400"><X className="w-4 h-4" /></button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 bg-stone-950/30">
-                <Log history={gameState.history} />
-              </div>
-            </div>
-          </>
-        )
-      }
 
       {/* Rules Modal Overlay */}
       {
