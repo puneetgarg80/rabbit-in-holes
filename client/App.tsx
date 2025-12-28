@@ -20,6 +20,7 @@ const App: React.FC = () => {
   });
 
   const [selectedHole, setSelectedHole] = useState<number | null>(null);
+  const [foxHole, setFoxHole] = useState<number | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showRules, setShowRules] = useState(true);
   const [isClosingRules, setIsClosingRules] = useState(false);
@@ -170,6 +171,11 @@ const App: React.FC = () => {
     setPhase('day');
     setIsProcessing(false);
 
+    // Close the hole for the new day (Visual Reset)
+    // We persist the fox position (where it last checked) but clear the "Checked/Open" state
+    setFoxHole(targetHole);
+    setGameState(prev => ({ ...prev, lastCheckedIndex: null }));
+
   }, [selectedHole, gameState, isProcessing]);
 
   const handleHoleClick = (index: number) => {
@@ -184,6 +190,7 @@ const App: React.FC = () => {
       holeCount: newHoleCount, possibleHoles: allHoles, candidatesHistory: [allHoles], day: 1, history: [], status: GameStatus.PLAYING, lastCheckedIndex: null, rabbitPath: [],
     });
     setSelectedHole(null);
+    setFoxHole(null);
     setReplayIndex(null);
     setIsPlayingReplay(false);
     setActiveTab(null);
@@ -226,7 +233,7 @@ const App: React.FC = () => {
   const currentPossibilities = isReplayMode ? -1 : gameState.possibleHoles.length;
   const foxPosition = isReplayMode
     ? displayCheckedPos
-    : (selectedHole !== null ? selectedHole : gameState.lastCheckedIndex);
+    : (selectedHole !== null ? selectedHole : (foxHole !== null ? foxHole : gameState.lastCheckedIndex));
   const showFox = (foxPosition !== null);
 
   // --- Visual Helpers for Sky ---

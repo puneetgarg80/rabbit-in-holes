@@ -50,8 +50,8 @@ export const Hole: React.FC<HoleProps> = ({
       icon = <Rabbit className="text-stone-500 w-6 h-6 sm:w-10 sm:h-10 opacity-75" />;
     }
   } else if (isSelected) {
-    // Selected to be checked (Active or Replay History)
-    stateClasses = "bg-stone-800 border-amber-500 scale-105 shadow-[0_0_15px_rgba(245,158,11,0.5)] z-10";
+    // Selected to be checked (Active or Replay History) - SHOW AS OPEN immediately
+    stateClasses = "bg-stone-900 border-stone-800 opacity-60 scale-105 shadow-inner z-10";
     // Pulse only if actively playing, not during replay
     // const pulseClass = gameStatus === GameStatus.PLAYING ? 'animate-pulse' : '';
     // icon = <PawPrint className={`text-amber-500 w-5 h-5 sm:w-8 sm:h-8 ${pulseClass}`} />;
