@@ -150,7 +150,7 @@ const App: React.FC = () => {
 
     // Phase 2: Night (Rabbit moves)
     setPhase('night');
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Rabbit moving (Slower)
+    await new Promise(resolve => setTimeout(resolve, 4000)); // Rabbit moving (Slower)
 
     const nextDayCandidatesSet = new Set<number>();
     afterCheckCandidates.forEach(pos => {
@@ -236,15 +236,10 @@ const App: React.FC = () => {
 
   // --- Visual Helpers for Sky ---
   const getSkyClass = () => {
-    switch (phase) {
-      case 'sunset': return 'bg-gradient-to-b from-indigo-900 to-orange-700'; // Rich sunset
-      case 'night': return 'bg-slate-950'; // Deep night
-      case 'sunrise': return 'bg-gradient-to-b from-sky-800 to-amber-200'; // Bright sunrise
-      default: return 'bg-sky-100'; // Light Day Theme
-    }
+    return 'bg-sky-100'; // Always Day Theme
   };
 
-  const isDay = phase === 'day';
+  const isDay = true;
   const textColor = isDay ? 'text-stone-800' : 'text-stone-200';
   const subTextColor = isDay ? 'text-stone-500' : 'text-stone-400';
 
@@ -453,24 +448,26 @@ const App: React.FC = () => {
             ) : (
               // Phase-based Narrative Feedback
               (() => {
+                const commonClasses = "font-bold px-5 py-1.5 rounded-full shadow-sm border bg-stone-100/90 border-stone-200 text-stone-600";
+
                 if (phase === 'sunset') return (
-                  <span className={`font-bold animate-in fade-in duration-500 px-5 py-1.5 rounded-full shadow-sm border ${isDay ? 'bg-orange-100/80 border-orange-200 text-orange-700' : 'bg-orange-900/40 border-orange-800 text-orange-200'}`}>
+                  <span className={`${commonClasses} animate-in fade-in duration-500`}>
                     No rabbit here...
                   </span>
                 );
                 if (phase === 'night') return (
-                  <span className={`font-bold animate-pulse px-5 py-1.5 rounded-full shadow-sm border ${isDay ? 'bg-indigo-100/80 border-indigo-200 text-indigo-700' : 'bg-indigo-900/40 border-indigo-800 text-indigo-200'}`}>
+                  <span className={`${commonClasses} animate-pulse`}>
                     Rabbit is moving to a nearby hole...
                   </span>
                 );
                 if (phase === 'sunrise') return (
-                  <span className={`font-bold animate-in fade-in duration-500 px-5 py-1.5 rounded-full shadow-sm border ${isDay ? 'bg-amber-100/80 border-amber-200 text-amber-700' : 'bg-amber-900/40 border-amber-800 text-amber-200'}`}>
+                  <span className={`${commonClasses} animate-in fade-in duration-500`}>
                     Sun is rising... Good luck!
                   </span>
                 );
                 // Default: Day / Idle
                 if (selectedHole !== null) return (
-                  <span className={`font-bold animate-pulse backdrop-blur px-5 py-1.5 rounded-full shadow-sm border ${isDay ? 'bg-stone-200/80 border-stone-300 text-stone-700' : 'bg-stone-900/80 border-stone-800 text-stone-300'}`}>
+                  <span className={`${commonClasses} animate-pulse backdrop-blur`}>
                     Checking Hole #{selectedHole + 1}
                   </span>
                 );
