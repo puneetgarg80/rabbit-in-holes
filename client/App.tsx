@@ -138,7 +138,7 @@ const App: React.FC = () => {
     setPhase('sunset');
     const afterCheckCandidates = possibleHoles.filter(h => h !== targetHole);
     setGameState(prev => ({ ...prev, possibleHoles: afterCheckCandidates, lastCheckedIndex: null }));
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Darkening (Slower)
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Darkening (Slower)
 
     // UPDATE STATE: Remove checked hole from possibilities (Visual: Ghost rabbit disappears)
     // AND Close the hole / Remove Fox immediately ("Same Day")
@@ -147,7 +147,7 @@ const App: React.FC = () => {
 
     // Phase 2: Night (Rabbit moves)
     setPhase('night');
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Rabbit moving (Slower)
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Rabbit moving (Slower)
 
     const nextDayCandidatesSet = new Set<number>();
     afterCheckCandidates.forEach(pos => {
