@@ -468,7 +468,7 @@ const App: React.FC = () => {
             {gameState.status === GameStatus.WON ? (
               isReplayMode ? null : (
                 <span className="text-emerald-400 font-bold flex items-center gap-2 bg-emerald-950/40 px-5 py-2 rounded-full border border-emerald-900/50 shadow-sm">
-                  <Trophy className="w-4 h-4" /> Caught at Hole #{selectedHole! + 1}!
+                  <Trophy className="w-4 h-4" /> Caught at Hole #{gameState.lastCheckedIndex! + 1}!
                 </span>
               )
             ) : (
