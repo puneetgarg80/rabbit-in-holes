@@ -227,17 +227,63 @@ const App: React.FC = () => {
   const toggleAutoReplay = () => { setIsPlayingReplay(prev => !prev); };
 
   useEffect(() => {
-    if (isPlayingReplay && replayIndex !== null) {
-      replayTimerRef.current = window.setInterval(() => {
-        setReplayIndex(prev => {
-          if (prev === null) return 0;
-          if (prev < gameState.history.length - 1) return prev + 1;
-          else { setIsPlayingReplay(false); return prev; }
-        });
-      }, 2000);
+    let isCancelled = false;
+    const runReplaySequence = async () => {
+      // If we just started (replayIndex is null or 0), ensure we are at 0
+      if (replayIndex === null) {
+        setReplayIndex(0);
+        // Wait a bit for initial render
+        await new Promise(r => setTimeout(r, 500));
+      }
+
+      // We loop through history from current replayIndex
+      // But actually, the state `replayIndex` drives the UI.
+      // So we just need to handle the transition from (Index) to (Index + 1)
+
+      // Wait for user to see the "Check" (Day phase)
+      await new Promise(r => setTimeout(r, 1000));
+      if (!isPlayingReplay || isCancelled) return;
+
+      // Are we at the end?
+      if (replayIndex !== null && replayIndex >= gameState.history.length - 1) {
+        setIsPlayingReplay(false);
+        return;
+      }
+
+      // START TRANSITION
+
+      // 1. Sunset
+      setPhase('sunset');
+      await new Promise(r => setTimeout(r, 1500));
+      if (!isPlayingReplay || isCancelled) return;
+
+      // 2. Night (Rabbit Move)
+      setPhase('night');
+      await new Promise(r => setTimeout(r, 2000)); // Give time to see stars/rabbit
+      if (!isPlayingReplay || isCancelled) return;
+
+      // 3. Increment Day (Logic update)
+      setReplayIndex(prev => (prev === null ? 0 : prev + 1));
+
+      // 4. Sunrise
+      setPhase('sunrise');
+      await new Promise(r => setTimeout(r, 1500));
+      if (!isPlayingReplay || isCancelled) return;
+
+      // 5. Day
+      setPhase('day');
+    };
+
+    if (isPlayingReplay) {
+      runReplaySequence();
+    } else {
+      // If stopped, ensure we are back to day
+      setPhase('day');
     }
-    return () => { if (replayTimerRef.current) clearInterval(replayTimerRef.current); };
-  }, [isPlayingReplay, gameState.history.length]);
+
+    return () => { isCancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlayingReplay, replayIndex]); // We trigger effect each time replayIndex updates to start the NEXT sequence
 
   const nextReplayDay = () => { setIsPlayingReplay(false); setReplayIndex(prev => (prev !== null && prev < gameState.history.length - 1 ? prev + 1 : prev)); };
   const prevReplayDay = () => { setIsPlayingReplay(false); setReplayIndex(prev => (prev !== null && prev > 0 ? prev - 1 : prev)); };
@@ -253,7 +299,8 @@ const App: React.FC = () => {
   const foxPosition = isReplayMode
     ? displayCheckedPos
     : (selectedHole !== null ? selectedHole : (gameState.lastCheckedIndex !== null ? gameState.lastCheckedIndex : foxHole));
-  const showFox = (foxPosition !== null);
+
+  const showFox = (foxPosition !== null) && phase !== 'night'; // Hide fox at night
 
   // --- Visual Helpers for Sky ---
   const getSkyClass = () => {
@@ -465,16 +512,15 @@ const App: React.FC = () => {
 
           {/* Feedback Text - Floating below board */}
           <div className="text-center h-10 flex items-center justify-center w-full px-4 mt-2">
-            {gameState.status === GameStatus.WON ? (
-              isReplayMode ? null : (
-                <span className="text-emerald-400 font-bold flex items-center gap-2 bg-emerald-950/40 px-5 py-2 rounded-full border border-emerald-900/50 shadow-sm">
-                  <Trophy className="w-4 h-4" /> Caught at Hole #{gameState.lastCheckedIndex! + 1}!
-                </span>
-              )
+            {gameState.status === GameStatus.WON && !isReplayMode ? (
+              <span className="text-emerald-400 font-bold flex items-center gap-2 bg-emerald-950/40 px-5 py-2 rounded-full border border-emerald-900/50 shadow-sm">
+                <Trophy className="w-4 h-4" /> Caught at Hole #{gameState.lastCheckedIndex! + 1}!
+              </span>
             ) : (
               // Phase-based Narrative Feedback
               (() => {
                 const commonClasses = "font-bold px-5 py-1.5 rounded-full shadow-sm border bg-stone-100/90 border-stone-200 text-stone-600";
+                const activeHole = isReplayMode ? displayCheckedPos : selectedHole;
 
                 if (phase === 'sunset') return (
                   <span className={`${commonClasses} animate-in fade-in duration-500`}>
@@ -492,9 +538,9 @@ const App: React.FC = () => {
                   </span>
                 );
                 // Default: Day / Idle
-                if (selectedHole !== null) return (
+                if (activeHole !== null && activeHole !== undefined) return (
                   <span className={`${commonClasses} backdrop-blur`}>
-                    Checking Hole #{selectedHole + 1}
+                    Checking Hole #{activeHole + 1}
                   </span>
                 );
                 return null;
