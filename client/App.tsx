@@ -29,7 +29,7 @@ const App: React.FC = () => {
   const rulesModalRef = useRef<HTMLDivElement>(null);
 
   // Debug Mode
-  const [isDebugMode, setIsDebugMode] = useState(true);
+  const [isDebugMode, setIsDebugMode] = useState(false);
 
   // Day/Night Cycle Phase
   const [phase, setPhase] = useState<'day' | 'sunset' | 'night' | 'sunrise'>('day');
