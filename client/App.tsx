@@ -2,9 +2,10 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Hole } from './components/Hole';
 
 import { GameState, GameStatus, HistoryEntry } from './types';
-import { RefreshCw, Trophy, Info, Minus, Plus, X, Play, SkipBack, SkipForward, ChevronLeft, ChevronRight, Pause, Smartphone, Rabbit, MapPin, Repeat, Bug, Sun, Moon, Undo2 } from 'lucide-react';
+import { RefreshCw, Trophy, Info, Minus, Plus, X, Play, SkipBack, SkipForward, ChevronLeft, ChevronRight, Pause, Smartphone, Rabbit, MapPin, Repeat, Bug, Sun, Moon, Undo2, XCircle } from 'lucide-react';
 const App: React.FC = () => {
   const initialHoleCount = 3;
+  const getMaxMoves = (count: number) => (count - 1) * 2; // 3 holes: 2, 4 holes: 4, 5 holes: 6...
 
   // --- Game State ---
   const [gameState, setGameState] = useState<GameState>({
@@ -158,10 +159,27 @@ const App: React.FC = () => {
 
     const newEntry: HistoryEntry = { day, checkedHoleIndex: targetHole, found: false, remainingPossibilitiesCount: afterCheckCandidates.length };
 
+    const maxMoves = getMaxMoves(holeCount);
+    const isLoss = day >= maxMoves;
+
     // Update Game State (New Day)
-    setGameState(prev => ({
-      ...prev, day: prev.day + 1, history: [...prev.history, newEntry], possibleHoles: nextPossibleHoles, candidatesHistory: [...prev.candidatesHistory, nextPossibleHoles]
-    }));
+    setGameState(prev => {
+      let rabbitPath = prev.rabbitPath;
+      if (isLoss) {
+        // Pick a random possible hole to backtrack from
+        const randomFinalHole = nextPossibleHoles[Math.floor(Math.random() * nextPossibleHoles.length)];
+        rabbitPath = backtrackPath([...prev.candidatesHistory, nextPossibleHoles], [...prev.history, newEntry], randomFinalHole);
+      }
+      return {
+        ...prev,
+        day: prev.day + 1,
+        history: [...prev.history, newEntry],
+        possibleHoles: nextPossibleHoles,
+        candidatesHistory: [...prev.candidatesHistory, nextPossibleHoles],
+        status: isLoss ? GameStatus.LOST : prev.status,
+        rabbitPath
+      };
+    });
 
     // Phase 3: Sunrise
     setPhase('sunrise');
@@ -222,7 +240,7 @@ const App: React.FC = () => {
   };
 
   // --- Replay Logic ---
-  const isReplayMode = replayIndex !== null && gameState.status === GameStatus.WON;
+  const isReplayMode = replayIndex !== null && (gameState.status === GameStatus.WON || gameState.status === GameStatus.LOST);
   const startReplay = () => { setReplayIndex(0); setIsPlayingReplay(true); };
   const toggleAutoReplay = () => { setIsPlayingReplay(prev => !prev); };
 
@@ -301,6 +319,9 @@ const App: React.FC = () => {
     : (selectedHole !== null ? selectedHole : (gameState.lastCheckedIndex !== null ? gameState.lastCheckedIndex : foxHole));
 
   const showFox = (foxPosition !== null) && phase !== 'night'; // Hide fox at night
+
+  const maxMoves = getMaxMoves(gameState.holeCount);
+  const movesLeft = Math.max(0, maxMoves - gameState.day + 1);
 
   // --- Visual Helpers for Sky ---
   const getSkyClass = () => {
@@ -405,7 +426,7 @@ const App: React.FC = () => {
         {/* Sidebar Controls (Landscape Only) */}
         <div className="hidden landscape:flex flex-col justify-center gap-4 p-4 pr-0 z-20">
           {/* Replay Controls in Sidebar */}
-          {gameState.status === GameStatus.WON && (
+          {(gameState.status === GameStatus.WON || gameState.status === GameStatus.LOST) && (
             isReplayMode ? (
               <div className={`flex flex-col gap-2 border rounded-xl p-2 shadow-xl ${isDay ? 'bg-white border-stone-200 text-stone-800' : 'bg-stone-900 border-stone-800 text-white'}`}>
                 <button onClick={toggleAutoReplay} className={`p-3 rounded-lg text-amber-500 transition-colors flex justify-center ${isDay ? 'hover:bg-stone-100' : 'hover:bg-stone-800'}`}>{isPlayingReplay ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}</button>
@@ -420,7 +441,7 @@ const App: React.FC = () => {
             )
           )}
 
-          {(!isReplayMode || gameState.status !== GameStatus.WON) && (
+          {(!isReplayMode || (gameState.status !== GameStatus.WON && gameState.status !== GameStatus.LOST)) && (
             <div className="flex flex-col gap-2">
               <button onClick={undoLastMove} disabled={gameState.history.length === 0 || isProcessing || isReplayMode} className={`p-3 rounded-xl shadow-lg border hover:scale-105 active:scale-95 disabled:opacity-30 transition-all ${isDay ? 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50' : 'bg-stone-900 text-stone-500 border-stone-800 hover:bg-stone-800 hover:text-stone-300'}`} title="Undo Move"><Undo2 className="w-5 h-5" /></button>
               <button onClick={() => resetGame()} disabled={isProcessing} className={`p-3 rounded-xl shadow-lg border hover:scale-105 active:scale-95 disabled:opacity-30 transition-all ${isDay ? 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50' : 'bg-stone-900 text-stone-500 border-stone-800 hover:bg-stone-800 hover:text-stone-300'}`} title="New Game"><RefreshCw className="w-5 h-5" /></button>
@@ -438,7 +459,9 @@ const App: React.FC = () => {
                 {/* Day Counter - Centered above holes */}
                 <div className="absolute -top-20 left-1/2 -translate-x-1/2 whitespace-nowrap z-10">
                   <span className={`text-xs sm:text-sm font-bold uppercase tracking-[0.2em] px-4 py-1.5 rounded-full border shadow-sm ${isDay ? 'bg-white/90 border-stone-200 text-stone-600' : 'bg-stone-900 border-stone-800 text-stone-400'}`}>
-                    {isReplayMode ? `Replay Day ${displayDayNumber}` : `Day ${displayDayNumber}`}
+                    {isReplayMode
+                      ? `Replay Day ${displayDayNumber}`
+                      : `Day ${displayDayNumber} • ${movesLeft} ${movesLeft === 1 ? 'Move' : 'Moves'} Left`}
                   </span>
                 </div>
                 {/* Connector Line */}
@@ -453,7 +476,7 @@ const App: React.FC = () => {
 
                 {Array.from({ length: gameState.holeCount }).map((_, i) => {
                   const isChecked = displayCheckedPos === i;
-                  const isRabbit = isReplayMode ? displayRabbitPos === i : (gameState.status === GameStatus.WON && gameState.lastCheckedIndex === i);
+                  const isRabbit = isReplayMode ? displayRabbitPos === i : (gameState.status === GameStatus.WON ? gameState.lastCheckedIndex === i : (gameState.status === GameStatus.LOST && gameState.possibleHoles.includes(i)));
                   const isSelected = (!isReplayMode && selectedHole === i) || (isReplayMode && displayCheckedPos === i);
 
                   // Debug Mode: Identify if this hole is possible
@@ -516,6 +539,10 @@ const App: React.FC = () => {
               <span className="text-emerald-400 font-bold flex items-center gap-2 bg-emerald-950/40 px-5 py-2 rounded-full border border-emerald-900/50 shadow-sm">
                 <Trophy className="w-4 h-4" /> Caught at Hole #{gameState.lastCheckedIndex! + 1}!
               </span>
+            ) : gameState.status === GameStatus.LOST ? (
+              <span className="text-red-400 font-bold flex items-center gap-2 bg-red-950/40 px-5 py-2 rounded-full border border-red-900/50 shadow-sm animate-bounce">
+                <XCircle className="w-4 h-4" /> Out of moves! The rabbit escaped.
+              </span>
             ) : (
               // Phase-based Narrative Feedback
               (() => {
@@ -555,7 +582,7 @@ const App: React.FC = () => {
             <div className="h-4" />
           ) : (
             <div className="flex gap-3">
-              {gameState.status === GameStatus.WON && (
+              {(gameState.status === GameStatus.WON || gameState.status === GameStatus.LOST) && (
                 !isReplayMode ? (
                   <button onClick={startReplay} className="flex-1 bg-amber-600 hover:bg-amber-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"><Play className="w-5 h-5 fill-current" /> Watch Replay</button>
                 ) : (
@@ -568,9 +595,8 @@ const App: React.FC = () => {
                     <button onClick={closeReplay} className="p-3 hover:bg-red-900/40 text-red-400 rounded-xl transition-colors"><X className="w-5 h-5" /></button>
                   </div>
                 )
-              )
-              }
-              {(!isReplayMode || gameState.status !== GameStatus.WON) && (
+              )}
+              {(!isReplayMode || (gameState.status !== GameStatus.WON && gameState.status !== GameStatus.LOST)) && (
                 <button onClick={() => resetGame()} className={`flex-1 border py-4 rounded-2xl font-bold shadow-lg active:scale-[0.98] transition-all ${isDay ? 'bg-white border-stone-200 text-stone-600 hover:bg-stone-50' : 'bg-stone-900 border-stone-800 text-stone-300 hover:bg-stone-800'}`}>New Game</button>
               )}
             </div>

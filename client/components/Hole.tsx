@@ -39,11 +39,15 @@ export const Hole: React.FC<HoleProps> = ({
   // 2. If Selected: Highlight for potential check (Playing) or past check (Replay)
   // 3. If Checked (and empty): Footprints
 
-  if (gameStatus === GameStatus.WON && isRabbit) {
-    if (isChecked) {
+  if ((gameStatus === GameStatus.WON || gameStatus === GameStatus.LOST) && isRabbit) {
+    if (isChecked && gameStatus === GameStatus.WON) {
       // Caught!
       stateClasses = "bg-emerald-500 border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.5)] scale-110 z-10";
       icon = <Rabbit className="text-white w-6 h-6 sm:w-10 sm:h-10" />;
+    } else if (gameStatus === GameStatus.LOST) {
+      // Lost: Show where rabbit was (Red tint)
+      stateClasses = "bg-red-900/40 border-red-800 opacity-90 scale-95";
+      icon = <Rabbit className="text-red-400 w-6 h-6 sm:w-10 sm:h-10 opacity-80" />;
     } else {
       // Revealed but not checked (Replay mode or Debug)
       stateClasses = "bg-stone-700 border-stone-600 opacity-90";
@@ -78,7 +82,7 @@ export const Hole: React.FC<HoleProps> = ({
       {icon}
 
       {/* Dark overlay for depth if just a normal hole */}
-      {!isChecked && !isSelected && !(gameStatus === GameStatus.WON && isRabbit) && (
+      {!isChecked && !isSelected && !((gameStatus === GameStatus.WON || gameStatus === GameStatus.LOST) && isRabbit) && (
         <div className="absolute inset-2 bg-black opacity-30 rounded-full blur-sm pointer-events-none" />
       )}
 
