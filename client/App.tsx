@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Hole } from './components/Hole';
+import { UserNameModal } from './components/UserNameModal';
+import { WinModal } from './components/WinModal';
 
 import { GameState, GameStatus, HistoryEntry } from './types';
 import { RefreshCw, Trophy, Info, Minus, Plus, X, Play, SkipBack, SkipForward, ChevronLeft, ChevronRight, Pause, Smartphone, Rabbit, MapPin, Repeat, Bug, Sun, Moon, Undo2, XCircle } from 'lucide-react';
@@ -44,6 +46,26 @@ const App: React.FC = () => {
   // Orientation State
   const [isLandscape, setIsLandscape] = useState(true); // Default to true to avoid flash, check on mount
   const [showRotatePrompt, setShowRotatePrompt] = useState(false);
+
+  // User Identity
+  const [userName, setUserName] = useState<string | null>(null);
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [showWinModal, setShowWinModal] = useState(false);
+
+  useEffect(() => {
+    const savedName = localStorage.getItem('rabbit_hunter_name');
+    if (savedName) {
+      setUserName(savedName);
+    } else {
+      setShowNameModal(true);
+    }
+  }, []);
+
+  const handleNameComplete = (name: string) => {
+    localStorage.setItem('rabbit_hunter_name', name);
+    setUserName(name);
+    setShowNameModal(false);
+  };
 
   useEffect(() => {
     const checkOrientation = () => {
@@ -131,6 +153,9 @@ const App: React.FC = () => {
       }));
       setIsProcessing(false);
       setSelectedHole(null);
+
+      // Show win modal after a short delay to let the win animation be seen
+      setTimeout(() => setShowWinModal(true), 1000);
       return;
     }
 
@@ -231,6 +256,7 @@ const App: React.FC = () => {
     setFoxHole(null);
     setReplayIndex(null);
     setIsPlayingReplay(false);
+    setShowWinModal(false);
     if (replayTimerRef.current) clearInterval(replayTimerRef.current);
   };
 
@@ -381,6 +407,7 @@ const App: React.FC = () => {
       <header className={`flex-none backdrop-blur-md border-b z-10 shadow-sm px-4 h-14 flex items-center justify-between transition-colors duration-1000 ${headerClass}`}>
         <div>
           <h1 className={`text-lg font-bold tracking-tight leading-tight ${isDay ? 'text-stone-800' : 'text-stone-100'}`}>Catch the Rabbit</h1>
+          {userName && <p className={`text-[10px] font-bold uppercase tracking-widest ${isDay ? 'text-sky-600' : 'text-orange-500'} animate-in fade-in slide-in-from-left-2 duration-700`}>Hunter: {userName}</p>}
         </div>
         <div className="flex items-center gap-2">
           {/* Hole Controls moved to Header for Landscape */}
@@ -625,7 +652,9 @@ const App: React.FC = () => {
                   <Rabbit size={32} className={isDay ? 'text-sky-100' : 'text-orange-200'} />
                   <h2 className="text-3xl bangers tracking-wide">The Great Chase</h2>
                 </div>
-                <p className={`font-medium ${isDay ? 'text-sky-100' : 'text-orange-100'}`}>Can you outsmart the cheeky rabbit?</p>
+                <p className={`font-medium ${isDay ? 'text-sky-100' : 'text-orange-100'}`}>
+                  {userName ? `Can you outsmart the cheeky rabbit, ${userName}?` : 'Can you outsmart the cheeky rabbit?'}
+                </p>
               </div>
 
               <div className="p-1 space-y-1">
@@ -710,6 +739,26 @@ const App: React.FC = () => {
           <p className="text-stone-500 max-w-xs">We need a bit more space to hunt properly! Switch to landscape mode for the best experience.</p>
         </div>
       )}
+
+      {/* User Name Modal */}
+      {showNameModal && (
+        <UserNameModal onComplete={handleNameComplete} isDay={isDay} />
+      )}
+
+      {/* Win Modal */}
+      <WinModal 
+        isOpen={showWinModal}
+        onClose={() => setShowWinModal(false)}
+        onNextLevel={() => changeHoleCount(1)}
+        onRestart={() => resetGame()}
+        onReplay={() => {
+          setShowWinModal(false);
+          startReplay();
+        }}
+        holeCount={gameState.holeCount}
+        isDay={isDay}
+        userName={userName}
+      />
     </div>
   );
 };
