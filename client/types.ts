@@ -21,3 +21,11 @@ export interface GameState {
   lastCheckedIndex: number | null;
   rabbitPath: number[]; // Generated at the end of the game for replay
 }
+
+export type ActionType = 'HOLE_CLICK' | 'UNDO' | 'RESET' | 'CHANGE_HOLES' | 'GAME_WON' | 'GAME_LOST';
+
+export interface UserAction {
+  type: ActionType;
+  timestamp: string;
+  payload?: any;
+}

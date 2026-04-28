@@ -3,8 +3,8 @@ import { Hole } from './components/Hole';
 import { UserNameModal } from './components/UserNameModal';
 import { WinModal } from './components/WinModal';
 
-import { GameState, GameStatus, HistoryEntry } from './types';
-import { RefreshCw, Trophy, Info, Minus, Plus, X, Play, SkipBack, SkipForward, ChevronLeft, ChevronRight, Pause, Smartphone, Rabbit, MapPin, Repeat, Bug, Sun, Moon, Undo2, XCircle } from 'lucide-react';
+import { GameState, GameStatus, HistoryEntry, ActionType, UserAction } from './types';
+import { RefreshCw, Trophy, Info, Minus, Plus, X, Play, SkipBack, SkipForward, ChevronLeft, ChevronRight, Pause, Smartphone, Rabbit, MapPin, Repeat, Bug, Sun, Moon, Undo2, XCircle, Upload, FileJson } from 'lucide-react';
 const App: React.FC = () => {
   const initialHoleCount = 3;
   const getMaxMoves = (count: number) => (count - 1) * 2; // 3 holes: 2, 4 holes: 4, 5 holes: 6...
@@ -51,15 +51,107 @@ const App: React.FC = () => {
   const [userName, setUserName] = useState<string | null>(null);
   const [showNameModal, setShowNameModal] = useState(false);
   const [showWinModal, setShowWinModal] = useState(false);
+  const [isExternalReplayMode, setIsExternalReplayMode] = useState(false);
+  const [showReplayUpload, setShowReplayUpload] = useState(false);
 
+  // --- Logging & Syncing ---
+  const sessionIdRef = useRef(Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15));
+  const sessionStartTimeRef = useRef(new Date().toISOString());
+  const actionLogRef = useRef<UserAction[]>([]);
+  const gameStateRef = useRef<GameState>(gameState);
+  const lastSyncedActionCountRef = useRef<number>(-1);
+
+  // Keep gameStateRef in sync with state for logging
   useEffect(() => {
-    const savedName = localStorage.getItem('rabbit_hunter_name');
-    if (savedName) {
-      setUserName(savedName);
-    } else {
-      setShowNameModal(true);
+    gameStateRef.current = gameState;
+  }, [gameState]);
+
+  const logAction = useCallback((type: ActionType, payload?: any) => {
+    actionLogRef.current.push({ type, timestamp: new Date().toISOString(), payload });
+  }, []);
+
+  const syncToServer = useCallback(async (isFinal: boolean = false, finalState?: GameState) => {
+    const name = localStorage.getItem('rabbit_hunter_name') || 'Anonymous';
+    const currentActionCount = actionLogRef.current.length;
+
+    // Only sync if there are new actions OR it's a final state (win/loss) OR it's the first sync (count -1)
+    if (!isFinal && currentActionCount === lastSyncedActionCountRef.current) return;
+    if (currentActionCount === 0 && !isFinal && lastSyncedActionCountRef.current !== -1) return;
+
+    const payload = {
+      userName: name,
+      sessionId: sessionIdRef.current,
+      sessionStartTime: sessionStartTimeRef.current,
+      actions: actionLogRef.current,
+      finalGameState: finalState || gameStateRef.current
+    };
+
+    try {
+      await fetch('http://localhost:3001/api/session/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      lastSyncedActionCountRef.current = currentActionCount;
+    } catch (err) {
+      console.error('Failed to sync logs', err);
     }
   }, []);
+
+  // Periodic Sync
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      syncToServer();
+    }, 10000); // Sync every 10 seconds
+    return () => clearInterval(intervalId);
+  }, [syncToServer]);
+
+  // URL-based Replay Check
+  useEffect(() => {
+    if (window.location.pathname === '/replay') {
+      setIsExternalReplayMode(true);
+      setShowRules(false);
+      setShowNameModal(false);
+      setShowReplayUpload(true);
+    } else {
+      const savedName = localStorage.getItem('rabbit_hunter_name');
+      if (savedName) {
+        setUserName(savedName);
+      } else {
+        setShowNameModal(true);
+      }
+    }
+  }, []);
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const data = JSON.parse(text);
+        if (data && data.finalGameState) {
+          setGameState(data.finalGameState);
+          if (data.userName) setUserName(data.userName);
+          
+          setShowReplayUpload(false);
+          // Auto-start replay after brief delay
+          setTimeout(() => {
+            setReplayIndex(0);
+            setIsPlayingReplay(true);
+          }, 1500);
+        } else {
+          alert('Invalid log file. Missing final game state.');
+        }
+      } catch (err) {
+        console.error('Failed to parse log file', err);
+        alert('Failed to parse the uploaded log file.');
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const handleNameComplete = (name: string) => {
     localStorage.setItem('rabbit_hunter_name', name);
@@ -134,6 +226,7 @@ const App: React.FC = () => {
 
     // Set selected hole immediately for UI feedback (Fox movement)
     setSelectedHole(targetHole);
+    logAction('HOLE_CLICK', { index: targetHole, day: gameState.day });
 
     setIsProcessing(true);
 
@@ -148,14 +241,21 @@ const App: React.FC = () => {
       const path = backtrackPath(candidatesHistory, history, targetHole);
       const winEntry: HistoryEntry = { day, checkedHoleIndex: targetHole, found: true, remainingPossibilitiesCount: 0 };
 
-      setGameState(prev => ({
-        ...prev, status: GameStatus.WON, history: [...prev.history, winEntry], lastCheckedIndex: targetHole, rabbitPath: path
-      }));
+      const finalState = {
+        ...gameState, status: GameStatus.WON, history: [...gameState.history, winEntry], lastCheckedIndex: targetHole, rabbitPath: path
+      };
+      
+      setGameState(finalState);
       setIsProcessing(false);
       setSelectedHole(null);
+      
+      logAction('GAME_WON', { day, holeCount, caughtAt: targetHole });
+      syncToServer(true, finalState);
 
       // Show win modal after a short delay to let the win animation be seen
-      setTimeout(() => setShowWinModal(true), 1000);
+      if (!isExternalReplayMode) {
+        setTimeout(() => setShowWinModal(true), 1000);
+      }
       return;
     }
 
@@ -195,7 +295,8 @@ const App: React.FC = () => {
         const randomFinalHole = nextPossibleHoles[Math.floor(Math.random() * nextPossibleHoles.length)];
         rabbitPath = backtrackPath([...prev.candidatesHistory, nextPossibleHoles], [...prev.history, newEntry], randomFinalHole);
       }
-      return {
+      
+      const newState = {
         ...prev,
         day: prev.day + 1,
         history: [...prev.history, newEntry],
@@ -204,6 +305,14 @@ const App: React.FC = () => {
         status: isLoss ? GameStatus.LOST : prev.status,
         rabbitPath
       };
+
+      if (isLoss) {
+        logAction('GAME_LOST', { day, holeCount });
+        // Sync immediately on loss with the final state
+        syncToServer(true, newState);
+      }
+
+      return newState;
     });
 
     // Phase 3: Sunrise
@@ -218,6 +327,8 @@ const App: React.FC = () => {
 
   const undoLastMove = useCallback(() => {
     if (gameState.history.length === 0 || isProcessing) return;
+    
+    logAction('UNDO', { day: gameState.day });
 
     setGameState(prev => {
       const newHistory = prev.history.slice(0, -1);
@@ -248,6 +359,7 @@ const App: React.FC = () => {
 
 
   const resetGame = (newHoleCount: number = gameState.holeCount) => {
+    logAction('RESET', { holeCount: newHoleCount });
     const allHoles = Array.from({ length: newHoleCount }, (_, i) => i);
     setGameState({
       holeCount: newHoleCount, possibleHoles: allHoles, candidatesHistory: [allHoles], day: 1, history: [], status: GameStatus.PLAYING, lastCheckedIndex: null, rabbitPath: [],
@@ -262,11 +374,14 @@ const App: React.FC = () => {
 
   const changeHoleCount = (delta: number) => {
     const newCount = Math.min(10, Math.max(3, gameState.holeCount + delta));
-    if (newCount !== gameState.holeCount) resetGame(newCount);
+    if (newCount !== gameState.holeCount) {
+      logAction('CHANGE_HOLES', { delta, newCount });
+      resetGame(newCount);
+    }
   };
 
   // --- Replay Logic ---
-  const isReplayMode = replayIndex !== null && (gameState.status === GameStatus.WON || gameState.status === GameStatus.LOST);
+  const isReplayMode = replayIndex !== null;
   const startReplay = () => { setReplayIndex(0); setIsPlayingReplay(true); };
   const toggleAutoReplay = () => { setIsPlayingReplay(prev => !prev); };
 
@@ -453,7 +568,7 @@ const App: React.FC = () => {
         {/* Sidebar Controls (Landscape Only) */}
         <div className="hidden landscape:flex flex-col justify-center gap-4 p-4 pr-0 z-20">
           {/* Replay Controls in Sidebar */}
-          {(gameState.status === GameStatus.WON || gameState.status === GameStatus.LOST) && (
+          {(gameState.status === GameStatus.WON || gameState.status === GameStatus.LOST || isReplayMode) && (
             isReplayMode ? (
               <div className={`flex flex-col gap-2 border rounded-xl p-2 shadow-xl ${isDay ? 'bg-white border-stone-200 text-stone-800' : 'bg-stone-900 border-stone-800 text-white'}`}>
                 <button onClick={toggleAutoReplay} className={`p-3 rounded-lg text-amber-500 transition-colors flex justify-center ${isDay ? 'hover:bg-stone-100' : 'hover:bg-stone-800'}`}>{isPlayingReplay ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}</button>
@@ -605,11 +720,11 @@ const App: React.FC = () => {
 
         {/* Bottom Action Area (Fixed within Main) - Hidden in Landscape if empty */}
         <div className="flex-none p-4 pt-0 landscape:hidden">
-          {gameState.status === GameStatus.PLAYING ? (
+          {(gameState.status === GameStatus.PLAYING && !isReplayMode) ? (
             <div className="h-4" />
           ) : (
             <div className="flex gap-3">
-              {(gameState.status === GameStatus.WON || gameState.status === GameStatus.LOST) && (
+              {(gameState.status === GameStatus.WON || gameState.status === GameStatus.LOST || isReplayMode) && (
                 !isReplayMode ? (
                   <button onClick={startReplay} className="flex-1 bg-amber-600 hover:bg-amber-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"><Play className="w-5 h-5 fill-current" /> Watch Replay</button>
                 ) : (
@@ -759,6 +874,34 @@ const App: React.FC = () => {
         isDay={isDay}
         userName={userName}
       />
+      {/* Replay Upload Modal */}
+      {showReplayUpload && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className={`w-full max-w-md ${isDay ? 'bg-white border-stone-200' : 'bg-stone-900 border-stone-800'} rounded-3xl p-8 shadow-2xl border text-center space-y-6 animate-in zoom-in slide-in-from-bottom-8 duration-500`}>
+            <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center ${isDay ? 'bg-sky-100 text-sky-500' : 'bg-stone-800 text-sky-400'}`}>
+              <FileJson size={40} />
+            </div>
+            <div>
+              <h2 className={`text-2xl font-bold ${isDay ? 'text-stone-800' : 'text-stone-100'}`}>Replay Session</h2>
+              <p className={`text-sm mt-2 ${isDay ? 'text-stone-500' : 'text-stone-400'}`}>Upload a .log file from a previous session to watch the replay.</p>
+            </div>
+            
+            <label className={`relative block w-full py-4 border-2 border-dashed rounded-2xl cursor-pointer transition-colors ${isDay ? 'border-stone-300 hover:border-sky-500 hover:bg-sky-50' : 'border-stone-700 hover:border-sky-500 hover:bg-stone-800/50'}`}>
+              <input 
+                type="file" 
+                accept=".json,.log"
+                onChange={handleFileUpload}
+                className="hidden" 
+              />
+              <div className="flex flex-col items-center gap-2">
+                <Upload className={isDay ? 'text-stone-400' : 'text-stone-500'} />
+                <span className={`font-medium ${isDay ? 'text-stone-600' : 'text-stone-300'}`}>Select Log File</span>
+              </div>
+            </label>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
