@@ -24,8 +24,13 @@ if (!fs.existsSync(LOGS_DIR)) {
 app.use(cors());
 app.use(bodyParser.json());
 
-// Serve static files from the 'public' directory (where client build will be placed)
-const publicPath = path.join(__dirname, '..', 'public');
+// Serve static files from the 'public' directory (where client build will be placed in Docker)
+// Fallback to client/dist for local monolithic testing without Docker
+let publicPath = path.join(__dirname, '..', 'public');
+if (!fs.existsSync(publicPath)) {
+  publicPath = path.join(__dirname, '..', '..', 'client', 'dist');
+}
+
 if (fs.existsSync(publicPath)) {
   app.use(express.static(publicPath));
 }
@@ -100,7 +105,7 @@ app.post('/api/session/sync', (req: Request, res: Response) => {
 
 // Catch-all route to serve the index.html for SPA routing
 if (fs.existsSync(publicPath)) {
-  app.get('*', (req: Request, res: Response) => {
+  app.get(/.*/, (req: Request, res: Response) => {
     res.sendFile(path.join(publicPath, 'index.html'));
   });
 }
