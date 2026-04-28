@@ -87,7 +87,7 @@ const App: React.FC = () => {
     };
 
     try {
-      await fetch('http://localhost:3001/api/session/sync', {
+      await fetch('/api/session/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

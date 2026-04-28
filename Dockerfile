@@ -1,27 +1,38 @@
 # Stage 1: Build the React client
 FROM node:18-alpine AS client-build
 WORKDIR /app/client
-
-# Copy client package files
 COPY client/package*.json ./
-
-# Install dependencies
 RUN npm i
-
-# Copy client source code
 COPY client/ ./
-
-# Build the React application
 RUN npm run build
 
-# Stage 2: Serve the built application with Nginx
-FROM nginx:alpine
+# Stage 2: Build the Node server
+FROM node:18-alpine AS server-build
+WORKDIR /app/server
+COPY server/package*.json ./
+RUN npm i
+COPY server/ ./
+RUN npm run build
 
-COPY --from=client-build /app/client/dist /usr/share/nginx/html
+# Stage 3: Final Production Image
+FROM node:18-alpine
+WORKDIR /app
 
-# Optional: Copy a custom Nginx configuration if needed
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy server build and dependencies
+COPY --from=server-build /app/server/dist ./server/dist
+COPY --from=server-build /app/server/package*.json ./server/
+COPY --from=server-build /app/server/node_modules ./server/node_modules
 
-EXPOSE 80
+# Copy client build to server's public folder
+COPY --from=client-build /app/client/dist ./server/public
 
-CMD ["nginx", "-g", "daemon off;"]
+# Set working directory to server
+WORKDIR /app/server
+
+# Environment variables
+ENV NODE_ENV=production
+ENV PORT=8080
+
+EXPOSE 8080
+
+CMD ["node", "dist/index.js"]
